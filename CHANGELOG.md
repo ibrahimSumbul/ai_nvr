@@ -77,6 +77,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Notes
 - M1: `uv.lock` şu an commit edilmiyor; ilk `uv sync` çalıştırıldığında üretilir. M2'de lock dosyası repo'ya alınacak (reproducible build).
+- M1: Frigate UI host port'u **5100** (`5100:5000`). macOS'te port 5000 AirPlay Receiver tarafından tutulduğu için 5100 seçildi. Linux production'da da aynı port kullanılır.
 - M1: Mosquitto anonymous bağlantı kabul ediyor; M3'te user/password authentication eklenecek.
 - M1: Grafana provisioning boş; M5'te dashboard'lar provision edilecek.
+- M1: CI'da `mypy continue-on-error: true` — M1 grace period (strict typing M3 itibarıyla zorunlu olacak).
+- M1: bridge image'ı M3+ dependency'leri de içeriyor (`anthropic`, `fastapi`, `httpx`). M3'te `dependency-groups` ile milestone-bazlı incremental install'a geçilecek.
 - M0: M1 ile birlikte çalışan kod artık mevcut.
