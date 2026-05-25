@@ -1,0 +1,65 @@
+# Frigate konfigürasyonu — M1 iskelet, henüz kamera yok.
+# M2'de gerçek kameralar docs/05-dahua-integration.md'ye göre eklenir.
+
+mqtt:
+  enabled: true
+  host: mqtt
+  port: 1883
+  user: "{FRIGATE_MQTT_USER}"
+  password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+
+# CPU detector — M6'da Coral USB'ye geçilir
+detectors:
+  cpu1:
+    type: cpu
+    num_threads: 3
+
+# Global detect — kamera bazında override edilir
+detect:
+  enabled: false  # M2'de aktif olur
+  width: 640
+  height: 480
+  fps: 5
+
+snapshots:
+  enabled: true
+  timestamp: true
+  bounding_box: true
+  retain:
+    default: 14
+
+# Recording kapalı — kayıt Dahua NVR'da yapılıyor (docs/01-architecture.md)
+record:
+  enabled: false
+
+objects:
+  track:
+    - person
+    - car
+    - truck
+    - motorcycle
+    - bicycle
+  filters:
+    person:
+      min_score: 0.6
+      threshold: 0.7
+    truck:
+      min_score: 0.5
+      threshold: 0.6
+
+cameras: {}
+# M2'de kameralar şu örnekteki gibi eklenecek:
+#
+# cameras:
+#   depo_giris:
+#     ffmpeg:
+#       inputs:
+#         - path: rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.10.21:554/cam/realmonitor?channel=1&subtype=1
+#           roles: [detect]
+#       input_args: preset-rtsp-restream
+#     detect:
+#       enabled: true
+#     zones:
+#       zone_depo:
+#         coordinates: 0,480,640,480,640,200,0,200

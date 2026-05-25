@@ -1,7 +1,7 @@
 # AI NVR — Dahua + Frigate + Claude Haiku Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Faz: M1 Docker iskelet](https://img.shields.io/badge/Faz-M1%20Docker%20iskelet-yellow.svg)](ROADMAP.md)
+[![Faz: M1 tamam](https://img.shields.io/badge/Faz-M1%20tamam-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Claude Haiku](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Claude-534AB7.svg)](docs/11-tech-decisions.md)
 
 Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, saniye hassasiyetinde kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
@@ -18,8 +18,8 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 |---|---|
 | Mimari kararları | ✅ Tamam |
 | Dokümantasyon (11 doküman) | ✅ Tamam |
-| Docker iskelet (M1) | 🚧 İnşa ediliyor |
-| Tek kamera pilot (M2) | ⬜ Bekliyor |
+| Docker iskelet (M1) | ✅ Tamam |
+| Tek kamera pilot (M2) | 🚧 Sıradaki |
 | LLM + Dahua alarm + e-posta (M3–M6.5) | ⬜ Bekliyor |
 | Üretim (~25 AI kamera) | ⬜ Bekliyor |
 | Coral USB upgrade | ⬜ Türkiye tedarik bekliyor |
@@ -67,14 +67,24 @@ Daha fazla kamera eklenirse → maliyet sadece Haiku tarafında artar (donanım 
 
 ## Hızlı Başlangıç
 
-> 🚧 Henüz aktif değil. M1 (Docker iskelet) tamamlandığında bu komutlar çalışır olacak.
+> ✅ M1 hazır — stack ayağa kalkıyor, kameralar henüz tanımlı değil (M2'de eklenir).
 
 ```bash
 git clone https://github.com/ibrahimSumbul/ai_nvr.git
 cd ai_nvr
 cp .env.example .env
-# .env içine: ANTHROPIC_API_KEY, DAHUA_*, RTSP URL'leri
+# .env içine güçlü şifreler ve ANTHROPIC_API_KEY yaz
 docker compose up -d
+make ps         # tüm servisler 'healthy' olmalı
+make logs       # bridge 'Bridge ready, waiting for events' yazar
+```
+
+Geliştirme (yerel `uv` kurulu olmalı):
+
+```bash
+cd bridge
+uv sync                          # bağımlılıkları yükle
+uv run pytest -m "not integration"   # unit testler
 ```
 
 Adım adım kurulum: [`docs/03-setup.md`](docs/03-setup.md).

@@ -1,0 +1,132 @@
+# AI NVR — Docker Compose orkestrasyonu (M1 iskelet)
+# Bkz: docs/01-architecture.md ve docs/03-setup.md
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ainvr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ainvr
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: ainvr-mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mqtt-data:/mosquitto/data
+      - mqtt-log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ainvr
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:stable
+    container_name: ainvr-frigate
+    restart: unless-stopped
+    shm_size: 256mb
+    environment:
+      FRIGATE_MQTT_USER: ${MQTT_USER}
+      FRIGATE_MQTT_PASSWORD: ${MQTT_PASSWORD}
+      FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD:-}
+    volumes:
+      - ./frigate/config.yml:/config/config.yml:ro
+      - frigate-storage:/media/frigate
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      mqtt:
+        condition: service_healthy
+    networks:
+      - ainvr
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  bridge:
+    build:
+      context: ./bridge
+      dockerfile: Dockerfile
+    image: ainvr-bridge:0.1.0
+    container_name: ainvr-bridge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      MQTT_HOST: mqtt
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mqtt:
+        condition: service_healthy
+    volumes:
+      - ainvr-media:/var/lib/ainvr
+    networks:
+      - ainvr
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: ainvr-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ainvr
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  postgres-data:
+  mqtt-data:
+  mqtt-log:
+  frigate-storage:
+  grafana-data:
+  ainvr-media:
+
+networks:
+  ainvr:
+    driver: bridge
