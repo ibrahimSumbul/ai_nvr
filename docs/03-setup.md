@@ -23,10 +23,9 @@ docker --version
 
 ```bash
 cd /opt
-sudo git clone https://github.com/ibrahimsumbul/ibrahimsumbul.git ai-nvr-deploy
-sudo chown -R $USER:$USER ai-nvr-deploy
-cd ai-nvr-deploy/ai-nvr
-git checkout claude/ai-camera-nvr-integration-QaKPd
+sudo git clone https://github.com/ibrahimSumbul/ai_nvr.git
+sudo chown -R $USER:$USER ai_nvr
+cd ai_nvr
 ```
 
 ## Adım 3: `.env` hazırlığı

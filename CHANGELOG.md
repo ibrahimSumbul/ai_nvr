@@ -44,4 +44,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Notes
 - Henüz çalışan kod yok, sadece tasarım dokümanları.
-- Branch: `claude/ai-camera-nvr-integration-QaKPd`
+- M1 (Docker iskelet) inşaası başlıyor — sıradaki adım.

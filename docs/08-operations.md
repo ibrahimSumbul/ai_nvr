@@ -196,12 +196,12 @@ Aktif izlenen alanı 11'e çıkarmak:
 
 Tüm değişiklikler git üzerinden:
 
-1. `git checkout claude/ai-camera-nvr-integration-QaKPd`
+1. `git checkout main` (veya feature branch)
 2. `git pull`
 3. Edit → test (local Docker)
 4. `git commit -m "..."`
 5. `git push`
-6. Production sunucuya: `cd /opt/ai-nvr-deploy && git pull && docker compose up -d`
+6. Production sunucuya: `cd /opt/ai_nvr && git pull && docker compose up -d`
 
 ## Kapanış Notu
 

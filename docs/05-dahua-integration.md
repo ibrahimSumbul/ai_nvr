@@ -90,14 +90,6 @@ cameras:
 
 Bridge bu yaml'i okuyup `frigate/config.yml`'i otomatik üretir (M1'de).
 
-### Sub-stream ayarı
-
-Web UI → Camera → Stream → Sub Stream:
-- Resolution: 640×480 (veya 704×576)
-- FPS: 5–10
-- Codec: H.264 (H.265 Frigate'te yavaş olabilir)
-- Bitrate: 256–512 kbps yeterli
-
 ## NVR Orijinal Panelinde Ne Görünür?
 
 Bizim AI sistemimizden gelen olaylar Dahua DSS/SmartPSS panelinde **"External Alarm"** olay tipi olarak görünür. Ayrıntı:
