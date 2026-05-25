@@ -1,6 +1,6 @@
 # 03 — Kurulum
 
-> 🚧 **Henüz aktif değil.** Bu doküman planlanan kurulum akışını anlatır. Milestone 1 tamamlanınca komutlar canlı olacak.
+> ✅ **M1 aktif.** Adım 1-6 (Docker iskelet + bridge + Postgres + MQTT) çalışır. Adım 7 (Dahua alarm) M4'te, Grafana dashboard'ları M5'te, kapı + e-posta + viewer M6.5'te aktive olur.
 
 ## Önkoşullar
 
@@ -135,7 +135,18 @@ Kameraya el sallayın → event gelir.
 ```bash
 docker compose logs -f bridge
 ```
-"Connected to MQTT", "Connected to Postgres", "Zone state machine initialized" görmelisiniz.
+M1'de şu log satırlarını görmelisiniz:
+
+```
+bridge.starting        version=0.1.0
+db.connecting          host=postgres port=5432
+db.connected
+bridge.ready           msg='Bridge ready, waiting for events'
+mqtt.connecting        host=mqtt port=1883 topic=frigate/#
+mqtt.connected
+```
+
+`Zone state machine initialized` mesajı M2'de aktif olacak (zone state machine M2 kapsamı).
 
 ### DB'yi kontrol
 ```bash
