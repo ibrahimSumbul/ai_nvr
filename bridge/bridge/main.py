@@ -7,6 +7,7 @@ M2: zone state machine eklenir.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import signal
 import sys
@@ -63,10 +64,8 @@ async def run(settings: Settings) -> None:
         await stop_event.wait()
     finally:
         listener_task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await listener_task
-        except asyncio.CancelledError:
-            pass
         await db.close()
         log.info("bridge.shutdown_complete")
 
@@ -87,10 +86,8 @@ def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
     log.info("bridge.starting", version="0.1.0")
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(run(settings))
-    except KeyboardInterrupt:
-        pass
 
 
 if __name__ == "__main__":
