@@ -28,7 +28,7 @@ Bu proje **PoC** olarak başlar, ama her milestone **production-ready** kalite h
   - `bridge/db.py` — Postgres async bağlantı (asyncpg)
   - `bridge/mqtt.py` — async MQTT istemci
   - `bridge/__init__.py`
-- [ ] `bridge/Dockerfile` (python:3.12-slim, multistage)
+- [ ] `bridge/Dockerfile` (python:3.13-slim, multistage)
 - [ ] `bridge/pyproject.toml` (uv veya poetry)
 - [ ] `bridge/tests/` — smoke test (config yüklenir, DB bağlanır)
 - [ ] `db/schema.sql` — tablolar (zone_events, door_events, truck_events, llm_usage, camera_status)

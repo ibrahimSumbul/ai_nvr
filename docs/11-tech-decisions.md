@@ -18,7 +18,7 @@ Kısa karar kaydı: hangi teknoloji seçildi, neden, ve hangileri elendi.
 
 Detay → [`docs/10-why-frigate.md`](10-why-frigate.md)
 
-## 2. Bridge Servisi Dili → **Python 3.12**
+## 2. Bridge Servisi Dili → **Python 3.13**
 
 | Aday | Sonuç | Neden |
 |---|---|---|
