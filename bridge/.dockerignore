@@ -1,0 +1,30 @@
+# Test ve cache dosyaları image'a girmesin
+tests/
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Virtual env (host'taki)
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Test/coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Git (Dockerfile zaten clean checkout'tan build edilir)
+.git/
+.gitignore

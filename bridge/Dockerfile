@@ -13,7 +13,7 @@ ENV UV_LINK_MODE=copy \
 
 COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-install-project --no-dev || uv sync --no-dev
+    uv sync --no-install-project --no-dev
 
 COPY bridge ./bridge
 COPY alembic.ini ./
