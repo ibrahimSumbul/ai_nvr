@@ -60,7 +60,7 @@ services:
       - frigate-storage:/media/frigate
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "5000:5000"
+      - "5100:5000"  # 5100 host → 5000 container. macOS'te 5000 AirPlay Receiver'da çakışır.
     depends_on:
       mqtt:
         condition: service_healthy

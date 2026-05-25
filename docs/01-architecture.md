@@ -105,7 +105,7 @@
 
 | Servis | Port | Network | Auth |
 |---|---|---|---|
-| Frigate Web UI | 5000 | Iç (LAN) | reverse-proxy basic auth |
+| Frigate Web UI | 5100 (→ 5000 container) | Iç (LAN) | reverse-proxy basic auth |
 | Grafana | 3000 | Iç (LAN) | Username/password |
 | Viewer (FastAPI) | 8080 | İç + reverse proxy 443 | HMAC view token |
 | Postgres | 5432 | Sadece Docker network | DB user/pass |

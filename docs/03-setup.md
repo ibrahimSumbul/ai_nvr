@@ -112,7 +112,7 @@ Beklenen çıktı (örnek):
 
 ```
 NAME              STATUS         PORTS
-ainvr-frigate     Up (healthy)   0.0.0.0:5000->5000/tcp
+ainvr-frigate     Up (healthy)   0.0.0.0:5100->5000/tcp
 ainvr-postgres    Up (healthy)   5432/tcp
 ainvr-mqtt        Up (healthy)   1883/tcp
 ainvr-bridge      Up (healthy)
@@ -122,7 +122,7 @@ ainvr-grafana     Up (healthy)   0.0.0.0:3000->3000/tcp
 ## Adım 6: Doğrulama
 
 ### Frigate UI
-- Tarayıcıdan: `http://<server-ip>:5000`
+- Tarayıcıdan: `http://<server-ip>:5100` (macOS AirPlay Receiver port 5000'i kullanır)
 - Her kamera için canlı görüntü, person/truck detection kutuları görünmeli.
 
 ### MQTT akışı
