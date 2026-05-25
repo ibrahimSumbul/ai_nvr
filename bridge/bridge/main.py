@@ -1,24 +1,36 @@
-"""Bridge servis ana giriş noktası — M1 iskelet.
+"""Bridge servis ana giriş noktası — M2.
 
 M1: MQTT'ye bağlanır, Postgres'i açar, gelen Frigate event'lerini loglar.
-M2: zone state machine eklenir.
+M2: zone state machine'e yönlendirir, `first_entry` ve `exit` DB'ye yazılır.
+M3: Haiku LLM + Dahua alarm + truck color flow eklenecek.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
+import os
 import signal
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 
 import structlog
 
 from bridge.config import Settings, get_settings
 from bridge.db import Database
+from bridge.events import FrigateEvent
 from bridge.mqtt import MqttClient
+from bridge.snapshots import SnapshotStore
+from bridge.zone_config import ZoneConfig, ZonesConfig, load_zones_config
+from bridge.zones import ZoneStateMachine
 
 log = structlog.get_logger(__name__)
+
+ZONES_PATH = Path(os.environ.get("AINVR_ZONES_PATH", "/app/config/zones.yaml"))
+TICK_INTERVAL_S = 10.0
 
 
 def configure_logging(level: str) -> None:
@@ -36,16 +48,45 @@ def configure_logging(level: str) -> None:
     )
 
 
+def build_state_machines(
+    zones_cfg: ZonesConfig,
+    db: Database,
+    snapshots: SnapshotStore,
+) -> dict[str, ZoneStateMachine]:
+    """Her zone için bir ZSM instance — `{zone_name: ZSM}`."""
+    return {z.name: ZoneStateMachine(z, db, snapshots) for z in zones_cfg.zones}
+
+
+def index_by_camera(zones_cfg: ZonesConfig) -> dict[str, list[ZoneConfig]]:
+    """`{camera_name: [zone_cfg, ...]}` — event yönlendirme için."""
+    by_cam: dict[str, list[ZoneConfig]] = {}
+    for z in zones_cfg.zones:
+        by_cam.setdefault(z.camera, []).append(z)
+    return by_cam
+
+
 async def run(settings: Settings) -> None:
     """Ana koşum döngüsü."""
     db = Database(settings)
+    snapshots = SnapshotStore(frigate_url="http://frigate:5000")
     mqtt = MqttClient(settings)
 
     await db.connect()
+
+    zones_cfg = load_zones_config(ZONES_PATH)
+    state_machines = build_state_machines(zones_cfg, db, snapshots)
+    cameras_to_zones = index_by_camera(zones_cfg)
+
+    # State recovery
+    for zsm in state_machines.values():
+        await zsm.restore_from_db()
+
     log.info(
         "bridge.ready",
         msg="Bridge ready, waiting for events",
         budget_usd=settings.llm_monthly_budget_usd,
+        zones=len(state_machines),
+        cameras=len(cameras_to_zones),
     )
 
     stop_event = asyncio.Event()
@@ -58,34 +99,79 @@ async def run(settings: Settings) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, _handle_stop)
 
-    listener_task = asyncio.create_task(_listen_loop(mqtt, stop_event))
+    listener = asyncio.create_task(_listen_loop(mqtt, state_machines, cameras_to_zones, stop_event))
+    ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
 
     try:
         await stop_event.wait()
     finally:
-        listener_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await listener_task
+        listener.cancel()
+        ticker.cancel()
+        for task in (listener, ticker):
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        await snapshots.close()
         await db.close()
         log.info("bridge.shutdown_complete")
 
 
-async def _listen_loop(mqtt: MqttClient, stop_event: asyncio.Event) -> None:
-    """MQTT event'lerini dinler — M1'de sadece log atar."""
-    async for message in mqtt.listen("frigate/#"):
+async def _listen_loop(
+    mqtt: MqttClient,
+    state_machines: dict[str, ZoneStateMachine],
+    cameras_to_zones: dict[str, list[ZoneConfig]],
+    stop_event: asyncio.Event,
+) -> None:
+    """MQTT event akışını state machine'lere dağıt."""
+    async for message in mqtt.listen("frigate/events"):
         if stop_event.is_set():
             break
-        log.info(
-            "mqtt.message",
-            topic=str(message.topic),
-            payload_bytes=len(message.payload) if message.payload else 0,
-        )
+        if not message.payload:
+            continue
+        try:
+            payload = json.loads(message.payload)
+            event = FrigateEvent.model_validate(payload)
+        except (ValueError, TypeError) as exc:
+            log.warning(
+                "mqtt.parse_failed",
+                topic=str(message.topic),
+                error=str(exc),
+            )
+            continue
+
+        zones_for_cam = cameras_to_zones.get(event.camera, [])
+        if not zones_for_cam:
+            log.debug("event.no_zone_match", camera=event.camera)
+            continue
+
+        for zone_cfg in zones_for_cam:
+            zsm = state_machines.get(zone_cfg.name)
+            if zsm is None:
+                continue
+            await zsm.on_event(event)
+
+
+async def _tick_loop(
+    state_machines: dict[str, ZoneStateMachine],
+    stop_event: asyncio.Event,
+) -> None:
+    """Her zone için periyodik exit kontrolü."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=TICK_INTERVAL_S)
+            return  # stop_event geldi
+        except TimeoutError:
+            now = datetime.now(UTC)
+            for zsm in state_machines.values():
+                try:
+                    await zsm.tick(now)
+                except Exception as exc:  # noqa: BLE001
+                    log.error("zone.tick_failed", zone=zsm.zone_name, error=str(exc))
 
 
 def main() -> None:
     settings = get_settings()
     configure_logging(settings.log_level)
-    log.info("bridge.starting", version="0.1.0")
+    log.info("bridge.starting", version="0.2.0")
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(run(settings))
 
