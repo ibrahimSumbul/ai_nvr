@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bridge
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: uv kur
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Python 3.13 kur
+        run: uv python install 3.13
+
+      - name: Bağımlılıkları yükle
+        run: uv sync
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Format kontrolü (ruff format --check)
+        run: uv run ruff format --check .
+
+      - name: Type kontrolü (mypy)
+        run: uv run mypy bridge
+        continue-on-error: true
+
+      - name: Unit testler (integration hariç)
+        run: uv run pytest -v -m "not integration"
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker bridge image build
+        run: docker build -t ainvr-bridge:ci ./bridge
+
+      - name: Image import smoke test
+        run: docker run --rm ainvr-bridge:ci python -c "import bridge; print(bridge.__version__)"
