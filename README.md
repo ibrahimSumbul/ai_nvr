@@ -1,14 +1,14 @@
-# AI NVR — Dahua + Frigate + Claude Haiku Hybrid Camera Analytics
+# AI NVR — Dahua + Frigate + Claude Haiku Hibrit Kamera Analitiği
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Documentation Phase](https://img.shields.io/badge/Status-Documentation-orange.svg)](ROADMAP.md)
+[![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
+[![Faz: M1 tamam](https://img.shields.io/badge/Faz-M1%20tamam-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Claude Haiku](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Claude-534AB7.svg)](docs/11-tech-decisions.md)
 
-A lightweight hybrid AI layer that adds zone authorization, first-entry alarms, second-precision door traversal logging, and truck/trailer color recording on top of an existing Dahua NVR — **without disturbing the original recording system**.
+Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, saniye hassasiyetinde kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
 
-Designed for a typical 100-IP-camera industrial deployment where the NVR is at ~50% load. Local detection runs on Frigate (CPU → Coral USB upgrade), semantic analysis (color, anomaly description) runs on Claude Haiku, and events flow back into the original DSS/SmartPSS panel as external alarms.
+Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal detection Frigate'te koşar (CPU → Coral USB upgrade), semantik analiz (renk, anomali tarifi) Claude Haiku'da koşar; olaylar orijinal DSS/SmartPSS paneline external alarm olarak geri akar.
 
-> Portfolio project — open-source reference architecture and documentation for hybrid local + cloud AI on existing CCTV infrastructure.
+> Portföy projesi — mevcut CCTV altyapısı üzerinde hibrit lokal + bulut AI için açık kaynak referans mimari ve dokümantasyon.
 
 ## Durum
 
@@ -17,9 +17,9 @@ Designed for a typical 100-IP-camera industrial deployment where the NVR is at ~
 | Aşama | Durum |
 |---|---|
 | Mimari kararları | ✅ Tamam |
-| Dokümantasyon (10 doküman) | ✅ Tamam |
-| Docker iskelet (M1) | ⬜ Sıradaki PR |
-| Tek kamera pilot (M2) | ⬜ Bekliyor |
+| Dokümantasyon (11 doküman) | ✅ Tamam |
+| Docker iskelet (M1) | ✅ Tamam |
+| Tek kamera pilot (M2) | 🚧 Sıradaki |
 | LLM + Dahua alarm + e-posta (M3–M6.5) | ⬜ Bekliyor |
 | Üretim (~25 AI kamera) | ⬜ Bekliyor |
 | Coral USB upgrade | ⬜ Türkiye tedarik bekliyor |
@@ -67,14 +67,27 @@ Daha fazla kamera eklenirse → maliyet sadece Haiku tarafında artar (donanım 
 
 ## Hızlı Başlangıç
 
-> 🚧 Henüz aktif değil. `docs/03-setup.md` yazıldıktan sonra burası canlanır.
+> ✅ M1 hazır — stack ayağa kalkıyor, kameralar henüz tanımlı değil (M2'de eklenir).
 
 ```bash
-# Planlanan
+git clone https://github.com/ibrahimSumbul/ai_nvr.git
+cd ai_nvr
 cp .env.example .env
-# .env içine: ANTHROPIC_API_KEY, DAHUA_*, RTSP URL'leri
+# .env içine güçlü şifreler ve ANTHROPIC_API_KEY yaz
 docker compose up -d
+make ps         # tüm servisler 'healthy' olmalı
+make logs       # bridge 'Bridge ready, waiting for events' yazar
 ```
+
+Geliştirme (yerel `uv` kurulu olmalı):
+
+```bash
+cd bridge
+uv sync                          # bağımlılıkları yükle
+uv run pytest -m "not integration"   # unit testler
+```
+
+Adım adım kurulum: [`docs/03-setup.md`](docs/03-setup.md).
 
 ## Dokümantasyon
 
