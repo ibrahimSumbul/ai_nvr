@@ -1,0 +1,92 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# uv
+.uv-cache/
+uv.lock
+
+# Environment variables (örnek hariç)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+
+# Linting & type checking
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# Çalıştırma artefaktları (host bind mount edilen dizinler)
+/data/
+/snapshots/
+/media/
+/logs/
+/backups/
+
+# Frigate cache (container içinde tutulur ama bind mount yapılırsa)
+/frigate/storage/
+/frigate/clips/
+/frigate/recordings/
+
+# Postgres bind mount (eğer host'a alınırsa)
+/postgres-data/
+
+# Secrets ve sertifikalar
+*.pem
+*.key
+*.crt
+*.p12
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
