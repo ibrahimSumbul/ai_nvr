@@ -29,7 +29,7 @@ env/
 
 # uv
 .uv-cache/
-uv.lock
+# uv.lock — commit edilir (reproducible build, CI `uv sync --frozen`)
 
 # Environment variables (örnek hariç)
 .env
