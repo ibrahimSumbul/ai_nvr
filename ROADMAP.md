@@ -14,29 +14,29 @@ Bu proje **PoC** olarak başlar, ama her milestone **production-ready** kalite h
 
 ---
 
-## Milestone 1: Local Stack İskeleti  ← SIRADAKİ PR
+## Milestone 1: Local Stack İskeleti ✅
 
 **Hedef**: Tek komutla ayağa kalkan, henüz kameraya bağlı olmayan stack.
 
 ### Kapsam (dahil)
-- [ ] `docker-compose.yml` — Frigate (CPU detector), Postgres, Mosquitto, Grafana, Bridge
-- [ ] `.env.example` — tüm değişkenler (PoC default'ları)
-- [ ] `frigate/config.yml` — boş şablon, comment'lerle açıklamalı, henüz kamera yok
-- [ ] `bridge/` Python servis iskeleti
+- [x] `docker-compose.yml` — Frigate (CPU detector), Postgres, Mosquitto, Grafana, Bridge
+- [x] `.env.example` — tüm değişkenler (PoC default'ları)
+- [x] `frigate/config.yml` — boş şablon, comment'lerle açıklamalı, henüz kamera yok
+- [x] `bridge/` Python servis iskeleti
   - `bridge/main.py` — MQTT'ye bağlanır, log atar, idle döner
   - `bridge/config.py` — env'den ayarlar
   - `bridge/db.py` — Postgres async bağlantı (asyncpg)
   - `bridge/mqtt.py` — async MQTT istemci
   - `bridge/__init__.py`
-- [ ] `bridge/Dockerfile` (python:3.13-slim, multistage)
-- [ ] `bridge/pyproject.toml` (uv veya poetry)
-- [ ] `bridge/tests/` — smoke test (config yüklenir, DB bağlanır)
-- [ ] `db/schema.sql` — tablolar (zone_events, door_events, truck_events, llm_usage, camera_status)
-- [ ] `db/migrations/` klasörü (Alembic veya basit migrasyon SQL'leri)
-- [ ] `Makefile`: `up / down / logs / shell / test / fmt / lint`
-- [ ] Health check tüm container'lar `healthy`
-- [ ] CI: GitHub Actions — `make lint && make test`
-- [ ] `README` quickstart bölümü canlanır
+- [x] `bridge/Dockerfile` (python:3.13-slim, multistage)
+- [x] `bridge/pyproject.toml` (uv ile)
+- [x] `bridge/tests/` — smoke test (config yüklenir, DB bağlanır)
+- [x] `db/schema.sql` — tablolar (zone_events, door_events, truck_events, llm_usage, camera_status)
+- [x] `bridge/alembic/` — migrasyon altyapısı (`0001_init` baseline)
+- [x] `Makefile`: `up / down / logs / shell / test / fmt / lint / migrate`
+- [x] Health check tüm container'lar `healthy`
+- [x] CI: GitHub Actions — ruff + mypy + pytest + docker build
+- [x] `README` quickstart bölümü canlandı
 
 ### Kapsam (dışında — sonraki milestone'lar)
 - ❌ Gerçek kameraya bağlanma (M2)
@@ -71,6 +71,21 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [ ] Manuel test: insan girince log, sürekli durunca tek event
 
 **Doğrulama**: 10 dk içinde alana 3 kez girip çıkın → DB'de tam 3 `first_entry` kaydı olmalı.
+
+---
+
+## Milestone 2.5: Sıkılaştırma (M3 öncesi pre-flight)
+
+**Hedef**: M3'te LLM/cloud entegrasyonu eklemeden önce güvenlik, persistence ve dev-prod disiplini sıkılaştırılır. Bu maddelerin tamamı M1 boyunca tespit edilip `CHANGELOG.md` "Known Issues"a not düşüldü; M2.5 bunları aksiyona dönüştürür.
+
+- [ ] **Mosquitto auth**: anonymous kaldır, `MQTT_USER`/`MQTT_PASSWORD` zorunlu hale getir, `mosquitto.conf`'a `password_file` ekle
+- [ ] **Frigate auth sıkılaştırma**: `frigate/config.yml`'e açık `auth:` tanımı, `trusted_proxies: []` (boş whitelist), `reset_admin_password: true` (ilk login zorlanır)
+- [ ] **Frigate `/config` persist**: `./frigate/storage:/config` named volume — recreate'te user DB + history kaybolmasın
+- [ ] **mypy strict zorunlu**: `.github/workflows/ci.yml`'de `continue-on-error: true` kaldır
+- [ ] **`dependency-groups` ile incremental install**: M3+ deps (`anthropic`, `fastapi`, `httpx`) `bridge/pyproject.toml`'de `[project].dependencies`'ten `[dependency-groups]` altındaki `[llm]` ve `[viewer]` gruplarına taşınır; Dockerfile build arg ile aktif grupları seçer. (Mevcut `[dependency-groups]` tablosu zaten `dev` için kurulu — PEP 735 altyapısı hazır, sadece M3+ deps'leri taşınacak.)
+- [ ] **`uv.lock` commit edilir**: ilk `uv sync` lock üretir, repo'ya alınır (reproducible build), CI `uv sync --frozen` kullanır
+
+**Doğrulama**: M1 stack hala healthy + Mosquitto auth fail edince bağlantı reddedilir + Frigate manual login zorunlu + mypy CI fail edebilir + `docker compose pull && up -d` her seferinde aynı bridge image hash'i.
 
 ---
 

@@ -1,3 +1,6 @@
+# Build context: ./bridge/ (docker-compose.yml'deki 'build: context: ./bridge').
+# Path'ler bridge/'in kendisine göre değerlendirilir — örn. 'tests/' = bridge/tests/.
+
 # Test ve cache dosyaları image'a girmesin
 tests/
 __pycache__/

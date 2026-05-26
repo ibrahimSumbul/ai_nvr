@@ -12,7 +12,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 
 ## Durum
 
-> **Dokümantasyon tamamlandı.** Kod henüz scaffold edilmedi — Milestone 1 ile başlıyor.
+> **M1 tamamlandı.** Stack lokalde çalışıyor (5 servis healthy). M2 sıradaki — tek pilot kamera + zone state machine.
 
 | Aşama | Durum |
 |---|---|
