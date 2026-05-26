@@ -11,6 +11,10 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 
+# pyproject'i kopyala, dependency'leri install et.
+# --no-install-project zorunlu: bridge/ kaynak henüz kopyalanmadı,
+# hatchling.build'ı tetiklememek için. Fallback (|| uv sync --no-dev)
+# eklenmemeli — gerçek hataları gizler.
 COPY pyproject.toml ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-install-project --no-dev
