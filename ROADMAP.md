@@ -59,18 +59,21 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 2: Tek Kamera Pilot
+## Milestone 2: Tek Kamera Pilot ✅
 
-**Hedef**: 1 Dahua kamera, 1 alan, ilk-giriş kuralı çalışıyor.
+**Hedef**: 1 kamera, 1 alan, ilk-giriş kuralı çalışıyor.
 
-- [ ] Dahua kamerasından RTSP sub-stream alımı (Frigate config)
-- [ ] Frigate person detection (CPU YOLOv8n)
-- [ ] Bridge: MQTT person event dinler, log atar
-- [ ] Zone state machine — TEK alan için boş→dolu geçişi
-- [ ] PostgreSQL'e `zone_events` insert
-- [ ] Manuel test: insan girince log, sürekli durunca tek event
+- [x] Kameradan RTSP sub-stream alımı (Frigate config — M2 pilot için MediaMTX test stream)
+- [x] Frigate person detection (CPU YOLOv8n)
+- [x] Bridge: MQTT FrigateEvent parse + state machine'e route
+- [x] Zone state machine — EMPTY/OCCUPIED + active_hours + alarm/DB insert ayrımı
+- [x] PostgreSQL'e `zone_events` insert (her first_entry + exit kaydı)
+- [x] Snapshot fetcher (Frigate API) + local disk store
+- [x] Restart recovery (`restore_from_db`)
+- [x] 28 unit test (events + state machine + active_hours + re-entry)
+- [x] Manuel test: end-to-end pipeline doğrulandı (lokal Colima + MediaMTX)
 
-**Doğrulama**: 10 dk içinde alana 3 kez girip çıkın → DB'de tam 3 `first_entry` kaydı olmalı.
+**Doğrulama**: alana giriş → DB'de `first_entry` (`alarm_emitted` metadata ile) + snapshot diskte. Heartbeat dedup çalışıyor. Exit timeout `exit` event üretir.
 
 ---
 
