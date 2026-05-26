@@ -1,6 +1,15 @@
 # Frigate konfigürasyonu — M1 iskelet, henüz kamera yok.
 # M2'de gerçek kameralar docs/05-dahua-integration.md'ye göre eklenir.
 
+# M2.5 sıkılaştırma: auth açık, anonymous bypass kapalı, manuel login zorunlu.
+# `reset_admin_password: true` ilk açılışta admin parolası reset edip log'a yazar
+# (sonraki açılışlarda log'ta yeni parola görünür). M3'te `false` yapıldığında
+# sabit kalır.
+auth:
+  enabled: true
+  reset_admin_password: true
+  trusted_proxies: []
+
 mqtt:
   enabled: true
   host: mqtt

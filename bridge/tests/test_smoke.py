@@ -14,10 +14,18 @@ from bridge.db import Database
 
 
 def test_bridge_package_imports() -> None:
-    """Paket import edilebilir olmalı (Docker healthcheck'in kontrol ettiği şey)."""
+    """Paket import edilebilir olmalı (Docker healthcheck'in kontrol ettiği şey).
+
+    `__version__` artık `importlib.metadata.version("bridge")` ile pyproject.toml'dan
+    okunur — manuel sync gerek değil. Bu test sadece format'ı doğrular.
+    """
     import bridge
 
-    assert bridge.__version__ == "0.1.0"
+    # Version PEP 440 uyumlu olmalı (M.m.p veya M.m.p+dev gibi)
+    assert bridge.__version__
+    assert bridge.__version__ != "0.0.0+unknown", (
+        "Paket install edilmemiş — `uv sync` veya `pip install -e .` çalıştır"
+    )
 
 
 def test_settings_default_dsn() -> None:

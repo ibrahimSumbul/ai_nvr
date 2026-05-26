@@ -77,18 +77,18 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 2.5: Sıkılaştırma (M3 öncesi pre-flight)
+## Milestone 2.5: Sıkılaştırma (M3 öncesi pre-flight) ✅
 
-**Hedef**: M3'te LLM/cloud entegrasyonu eklemeden önce güvenlik, persistence ve dev-prod disiplini sıkılaştırılır. Bu maddelerin tamamı M1 boyunca tespit edilip `CHANGELOG.md` "Known Issues"a not düşüldü; M2.5 bunları aksiyona dönüştürür.
+**Hedef**: M3'te LLM/cloud entegrasyonu eklemeden önce güvenlik, persistence ve dev-prod disiplini sıkılaştırıldı.
 
-- [ ] **Mosquitto auth**: anonymous kaldır, `MQTT_USER`/`MQTT_PASSWORD` zorunlu hale getir, `mosquitto.conf`'a `password_file` ekle
-- [ ] **Frigate auth sıkılaştırma**: `frigate/config.yml`'e açık `auth:` tanımı, `trusted_proxies: []` (boş whitelist), `reset_admin_password: true` (ilk login zorlanır)
-- [ ] **Frigate `/config` persist**: `./frigate/storage:/config` named volume — recreate'te user DB + history kaybolmasın
-- [ ] **mypy strict zorunlu**: `.github/workflows/ci.yml`'de `continue-on-error: true` kaldır
-- [ ] **`dependency-groups` ile incremental install**: M3+ deps (`anthropic`, `fastapi`, `httpx`) `bridge/pyproject.toml`'de `[project].dependencies`'ten `[dependency-groups]` altındaki `[llm]` ve `[viewer]` gruplarına taşınır; Dockerfile build arg ile aktif grupları seçer. (Mevcut `[dependency-groups]` tablosu zaten `dev` için kurulu — PEP 735 altyapısı hazır, sadece M3+ deps'leri taşınacak.)
-- [ ] **`uv.lock` commit edilir**: ilk `uv sync` lock üretir, repo'ya alınır (reproducible build), CI `uv sync --frozen` kullanır
+- [x] **Mosquitto auth**: anonymous kaldırıldı, `MQTT_USER`/`MQTT_PASSWORD` zorunlu, `mosquitto.conf` `password_file` + container entrypoint env'den passwd üretir
+- [x] **Frigate auth sıkılaştırma**: `frigate/config.yml`'e açık `auth: enabled + trusted_proxies: [] + reset_admin_password: true`
+- [x] **Frigate `/config` persist**: `frigate-config` named volume — user DB + JWT secret + history persist
+- [x] **mypy strict zorunlu**: CI'da `continue-on-error: true` kaldırıldı
+- [x] **`dependency-groups` ile incremental install**: M3+ deps (`anthropic`, `fastapi`, `httpx` core'da) `[dependency-groups]` altında `llm` ve `viewer` olarak ayrıldı. Dockerfile build arg `INSTALL_LLM`/`INSTALL_VIEWER` ile aktive
+- [x] **`uv.lock` commit edildi**: `.gitignore`'tan kaldırıldı, CI ve Dockerfile `--frozen` kullanır
 
-**Doğrulama**: M1 stack hala healthy + Mosquitto auth fail edince bağlantı reddedilir + Frigate manual login zorunlu + mypy CI fail edebilir + `docker compose pull && up -d` her seferinde aynı bridge image hash'i.
+**Doğrulama**: Anonymous mqtt → `Connection Refused: not authorised`. Auth ile uptime alınıyor. Frigate restart sonrası user DB persist (no "users exist" mesajı). mypy strict CI'da blocker. Core-only image'a `anthropic`/`fastapi` install **edilmiyor**.
 
 ---
 
@@ -102,6 +102,8 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [ ] Retry + timeout + cost log (her çağrının maliyetini DB'ye yaz)
 - [ ] Truck event flow: Frigate "truck" → snapshot al → Haiku → DB
 - [ ] Rate limit guard (saatlik max çağrı)
+- [ ] **M3 öncesi prereq**: `frigate/config.yml`'de `reset_admin_password: false` yap + admin parolasını güvenli yere kaydet (M2.5'te `true` bırakıldı — her restart yeni rastgele parola log'a basılıyordu)
+- [ ] **M3 öncesi prereq**: `docker-compose.yml`'de bridge `args: INSTALL_LLM: "true"` set et (anthropic image'a dahil)
 
 **Doğrulama**: 1 kamyon görüntüsü ile manuel test, renk JSON çıkışı doğrulanır. Maliyet logu kontrol.
 

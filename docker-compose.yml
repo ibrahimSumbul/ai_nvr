@@ -29,12 +29,31 @@ services:
     image: eclipse-mosquitto:2
     container_name: ainvr-mqtt
     restart: unless-stopped
+    environment:
+      # Mosquitto entrypoint passwd dosyasını bu env'lerden üretir
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
     volumes:
-      - ./mosquitto/config:/mosquitto/config:ro
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mqtt-data:/mosquitto/data
       - mqtt-log:/mosquitto/log
+    # M2.5: anonymous kaldırıldı; her start'ta env'den passwd üretilir.
+    # entrypoint root user olarak çalışır, mosquitto setuid ile mosquitto user'a
+    # geçer; passwd dosyası mosquitto'nun okuyabilmesi için chown + 0600.
+    # `${VAR:?msg}` guard — env boşsa container fail-fast (sessiz boş user/pass
+    # ile broker açılmaz). Opus PR #5 review Major #1 fix.
+    command: >
+      sh -c '
+        : "$${MQTT_USER:?MQTT_USER .env dosyasında set edilmeli}" &&
+        : "$${MQTT_PASSWORD:?MQTT_PASSWORD .env dosyasında set edilmeli}" &&
+        rm -f /tmp/passwd &&
+        mosquitto_passwd -c -b /tmp/passwd "$$MQTT_USER" "$$MQTT_PASSWORD" &&
+        chown mosquitto:mosquitto /tmp/passwd &&
+        chmod 0600 /tmp/passwd &&
+        exec mosquitto -c /mosquitto/config/mosquitto.conf
+      '
     healthcheck:
-      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/broker/uptime' -C 1 -W 3 -u $$MQTT_USER -P $$MQTT_PASSWORD || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -56,6 +75,9 @@ services:
       FRIGATE_MQTT_PASSWORD: ${MQTT_PASSWORD}
       FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD:-}
     volumes:
+      # M2.5: /config tüm dizin named volume — user DB, JWT secret, history persist
+      - frigate-config:/config
+      # config.yml ayrı bind mount (RO, host'tan editlenir, runtime override eder)
       - ./frigate/config.yml:/config/config.yml:ro
       - frigate-storage:/media/frigate
       - /etc/localtime:/etc/localtime:ro
@@ -76,6 +98,11 @@ services:
     build:
       context: ./bridge
       dockerfile: Dockerfile
+      args:
+        # Milestone-bazlı dependency-groups (M2.5+).
+        # M3'te: INSTALL_LLM=true. M6.5'te: INSTALL_VIEWER=true.
+        INSTALL_LLM: "false"
+        INSTALL_VIEWER: "false"
     image: ainvr-bridge:0.2.0
     container_name: ainvr-bridge
     restart: unless-stopped
@@ -126,6 +153,7 @@ volumes:
   mqtt-data:
   mqtt-log:
   frigate-storage:
+  frigate-config:  # M2.5: /config persist (user DB, history, jwt_secret)
   grafana-data:
   ainvr-media:
 
