@@ -137,10 +137,12 @@ async def test_exit_after_timeout() -> None:
     cfg = _zone_cfg(exit_timeout_seconds=60)
     db = FakeDB()
     snaps = FakeSnapshots()
-    times = iter([
-        datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),  # first_entry
-        datetime(2026, 1, 1, 12, 1, 30, tzinfo=UTC),  # tick 90s sonra
-    ])
+    times = iter(
+        [
+            datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),  # first_entry
+            datetime(2026, 1, 1, 12, 1, 30, tzinfo=UTC),  # tick 90s sonra
+        ]
+    )
     zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: next(times))  # type: ignore[arg-type]
 
     await zsm.on_event(_event(event_id="evt-1"))
@@ -157,10 +159,12 @@ async def test_no_exit_before_timeout() -> None:
     cfg = _zone_cfg(exit_timeout_seconds=60)
     db = FakeDB()
     snaps = FakeSnapshots()
-    times = iter([
-        datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),
-        datetime(2026, 1, 1, 12, 0, 30, tzinfo=UTC),  # 30s sonra
-    ])
+    times = iter(
+        [
+            datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),
+            datetime(2026, 1, 1, 12, 0, 30, tzinfo=UTC),  # 30s sonra
+        ]
+    )
     zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: next(times))  # type: ignore[arg-type]
 
     await zsm.on_event(_event(event_id="evt-1"))
