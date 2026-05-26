@@ -76,7 +76,7 @@ VIEW_TOKEN_SECRET=<32-char-random>
 VIEW_TOKEN_TTL_DAYS=7
 ```
 
-## Adım 4: Kameraları `frigate/config.yml`'ye ekle
+## Adım 4: Kameraları + zone'ları ekle (M2+)
 
 Detay → [`docs/05-dahua-integration.md`](05-dahua-integration.md#rtsp-urlleri)
 
@@ -100,6 +100,43 @@ cameras:
       arac_giris:
         coordinates: 0,480,640,480,640,200,0,200
 ```
+
+### Bridge zone tanımı
+
+Her aktif izlenen alan için `bridge/config/zones.yaml`'a tanım ekle (bind mount ile bridge container'a yansır, image rebuild gerek değil):
+
+```yaml
+zones:
+  - name: depo_giris              # bridge için unique adres
+    camera: cam_giris              # frigate/config.yml'deki kamera adı
+    frigate_zone: arac_giris       # frigate/config.yml içindeki zone adı
+    rules:
+      enabled: true
+      type: room                   # 'room' (state machine) | 'door' (M6.5'te traversal)
+      first_entry_alarm: true
+      exit_timeout_seconds: 60
+      min_person_score: 0.6
+      active_hours: "00:00-23:59"  # çapraz gece (18:00-08:00) destekli
+      alert_on_empty_arrival: true
+```
+
+Davranış (bkz. [`docs/04-zone-rules.md`](04-zone-rules.md)):
+- **DB insert her zaman** yapılır (event log).
+- **Alarm** sadece `first_entry_alarm AND active_hour AND alert_on_empty_arrival` üçlüsünde tetiklenir; metadata'da `alarm_emitted` flag'i ile işaretlenir.
+- `active_hours` örn. "18:00-08:00" mesai-dışı izleme için kullanılır; mesai-içi girişler kayda alınır ama alarm üretmez.
+
+Değişiklik sonrası: `docker compose restart bridge` (zones.yaml bind mount, image rebuild gerek değil).
+
+### M2 pilot için kısayol (MediaMTX test stream)
+
+Gerçek kamera yoksa MediaMTX gibi bir RTSP sunucusu ile test stream'i kullan:
+
+```bash
+# MediaMTX'i host makinede çalıştır (örn. rtsp://localhost:8554/cam_test)
+# Container içinden erişim: rtsp://host.docker.internal:8554/cam_test
+```
+
+`frigate/config.yml`'de `pilot_kamera` örneği bu URL'yi kullanır.
 
 ## Adım 5: Stack'i başlat
 

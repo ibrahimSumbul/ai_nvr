@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     mqtt_user: str = Field(default="ainvr")
     mqtt_password: str = Field(default="ainvr")
 
+    # Frigate (bridge container'ından internal erişim — snapshot fetch için)
+    frigate_internal_url: str = Field(default="http://frigate:5000")
+
     # Dahua
     dahua_nvr_host: str = Field(default="")
     dahua_nvr_user: str = Field(default="admin")
