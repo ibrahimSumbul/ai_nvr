@@ -48,18 +48,23 @@ objects:
       min_score: 0.5
       threshold: 0.6
 
-cameras: {}
-# M2'de kameralar şu örnekteki gibi eklenecek:
-#
-# cameras:
-#   depo_giris:
-#     ffmpeg:
-#       inputs:
-#         - path: rtsp://admin:{FRIGATE_RTSP_PASSWORD}@192.168.10.21:554/cam/realmonitor?channel=1&subtype=1
-#           roles: [detect]
-#       input_args: preset-rtsp-restream
-#     detect:
-#       enabled: true
-#     zones:
-#       zone_depo:
-#         coordinates: 0,480,640,480,640,200,0,200
+cameras:
+  # M2 pilot kamera — MediaMTX üzerinden test stream.
+  # Dev (macOS): rtsp://host.docker.internal:8554/cam_test (mac host'taki MediaMTX)
+  # Prod: gerçek Dahua kamera, bkz. docs/05-dahua-integration.md
+  pilot_kamera:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_test
+          roles: [detect]
+      # input_args belirtmiyoruz; Frigate default TCP transport kullanır
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    zones:
+      # M2 pilot için tüm frame zone olarak işaretlendi (clockwise polygon).
+      # Sonraki milestone'larda daraltılır.
+      zone_pilot:
+        coordinates: 0,480,640,480,640,0,0,0

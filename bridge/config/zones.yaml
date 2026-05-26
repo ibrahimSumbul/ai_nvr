@@ -2,17 +2,15 @@
 # M2: tek pilot alan tanımlanır (RTSP URL geldikten sonra aktive edilir).
 # M5: 10 alana kadar genişler.
 
-zones: []
-# Pilot zone örneği (RTSP URL ile aktive edilecek):
-# zones:
-#   - name: pilot_zone
-#     camera: pilot_kamera
-#     frigate_zone: zone_pilot
-#     rules:
-#       enabled: true
-#       type: room
-#       first_entry_alarm: true
-#       exit_timeout_seconds: 60
-#       min_person_score: 0.6
-#       active_hours: "00:00-23:59"
-#       alert_on_empty_arrival: true
+zones:
+  - name: pilot_zone
+    camera: pilot_kamera         # Frigate config'deki kamera adıyla eşleşir
+    frigate_zone: zone_pilot     # frigate/config.yml'deki zones içindeki ad
+    rules:
+      enabled: true
+      type: room
+      first_entry_alarm: true
+      exit_timeout_seconds: 60
+      min_person_score: 0.6
+      active_hours: "00:00-23:59"
+      alert_on_empty_arrival: true
