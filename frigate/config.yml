@@ -7,7 +7,10 @@
 # sabit kalır.
 auth:
   enabled: true
-  reset_admin_password: true
+  # M3'ten itibaren false: kullanıcı admin parolasını UI'dan değiştirip
+  # güvenli yere kaydeder. Eski parola kayboldu/forgot ise geçici olarak
+  # true yap + restart + log'tan oku.
+  reset_admin_password: false
   trusted_proxies: []
 
 mqtt:
