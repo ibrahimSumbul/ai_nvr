@@ -76,7 +76,7 @@ services:
     build:
       context: ./bridge
       dockerfile: Dockerfile
-    image: ainvr-bridge:0.1.0
+    image: ainvr-bridge:0.2.0
     container_name: ainvr-bridge
     restart: unless-stopped
     env_file: .env
@@ -90,6 +90,8 @@ services:
         condition: service_healthy
     volumes:
       - ainvr-media:/var/lib/ainvr
+      # Dev için zones.yaml host'tan bind mount — image rebuild gerekmez
+      - ./bridge/config:/app/config:ro
     networks:
       - ainvr
     logging:

@@ -1,6 +1,6 @@
 [project]
 name = "bridge"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI NVR — Dahua + Frigate + Claude Haiku hibrit kamera analitiği bridge servisi"
 requires-python = ">=3.13"
 authors = [
@@ -18,8 +18,11 @@ dependencies = [
     "structlog>=24.4.0",
     "alembic>=1.14.0",
     "psycopg[binary]>=3.2.0",
+    "pyyaml>=6.0.2",
 ]
 
+# M2.5'te `[core]`, `[llm]`, `[viewer]` gruplarına bölünecek
+# (CHANGELOG Known Issues + ROADMAP M2.5)
 [dependency-groups]
 dev = [
     "pytest>=8.3.0",
