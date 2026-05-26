@@ -11,19 +11,32 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 
-# pyproject'i kopyala, dependency'leri install et.
+# Milestone-bazlı opsiyonel grup install (M2.5 dependency-groups split).
+# Build arg ile aktive: docker compose'da `args:` ile veya
+# `docker build --build-arg INSTALL_LLM=true ...`
+# Default false → sadece core deps install (M1-M2 için yeterli).
+ARG INSTALL_LLM=false
+ARG INSTALL_VIEWER=false
+
+# pyproject + uv.lock kopyala, `--frozen` ile reproducible install.
 # --no-install-project zorunlu: bridge/ kaynak henüz kopyalanmadı,
 # hatchling.build'ı tetiklememek için. Fallback (|| uv sync --no-dev)
 # eklenmemeli — gerçek hataları gizler.
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-install-project --no-dev
+    sh -c 'GROUPS=""; \
+           [ "$INSTALL_LLM" = "true" ] && GROUPS="$GROUPS --group llm"; \
+           [ "$INSTALL_VIEWER" = "true" ] && GROUPS="$GROUPS --group viewer"; \
+           uv sync --frozen --no-install-project --no-dev $GROUPS'
 
 COPY bridge ./bridge
 COPY alembic.ini ./
 COPY alembic ./alembic
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev
+    sh -c 'GROUPS=""; \
+           [ "$INSTALL_LLM" = "true" ] && GROUPS="$GROUPS --group llm"; \
+           [ "$INSTALL_VIEWER" = "true" ] && GROUPS="$GROUPS --group viewer"; \
+           uv sync --frozen --no-dev $GROUPS'
 
 
 FROM python:3.13-slim AS runtime
