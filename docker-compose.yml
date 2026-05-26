@@ -39,13 +39,17 @@ services:
       - mqtt-log:/mosquitto/log
     # M2.5: anonymous kaldırıldı; her start'ta env'den passwd üretilir.
     # entrypoint root user olarak çalışır, mosquitto setuid ile mosquitto user'a
-    # geçer; passwd dosyası mosquitto'nun okuyabilmesi için chown + 0640.
+    # geçer; passwd dosyası mosquitto'nun okuyabilmesi için chown + 0600.
+    # `${VAR:?msg}` guard — env boşsa container fail-fast (sessiz boş user/pass
+    # ile broker açılmaz). Opus PR #5 review Major #1 fix.
     command: >
       sh -c '
+        : "$${MQTT_USER:?MQTT_USER .env dosyasında set edilmeli}" &&
+        : "$${MQTT_PASSWORD:?MQTT_PASSWORD .env dosyasında set edilmeli}" &&
         rm -f /tmp/passwd &&
         mosquitto_passwd -c -b /tmp/passwd "$$MQTT_USER" "$$MQTT_PASSWORD" &&
         chown mosquitto:mosquitto /tmp/passwd &&
-        chmod 0640 /tmp/passwd &&
+        chmod 0600 /tmp/passwd &&
         exec mosquitto -c /mosquitto/config/mosquitto.conf
       '
     healthcheck:

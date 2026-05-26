@@ -102,6 +102,8 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [ ] Retry + timeout + cost log (her çağrının maliyetini DB'ye yaz)
 - [ ] Truck event flow: Frigate "truck" → snapshot al → Haiku → DB
 - [ ] Rate limit guard (saatlik max çağrı)
+- [ ] **M3 öncesi prereq**: `frigate/config.yml`'de `reset_admin_password: false` yap + admin parolasını güvenli yere kaydet (M2.5'te `true` bırakıldı — her restart yeni rastgele parola log'a basılıyordu)
+- [ ] **M3 öncesi prereq**: `docker-compose.yml`'de bridge `args: INSTALL_LLM: "true"` set et (anthropic image'a dahil)
 
 **Doğrulama**: 1 kamyon görüntüsü ile manuel test, renk JSON çıkışı doğrulanır. Maliyet logu kontrol.
 
