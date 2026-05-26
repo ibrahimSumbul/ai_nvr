@@ -68,7 +68,7 @@ def index_by_camera(zones_cfg: ZonesConfig) -> dict[str, list[ZoneConfig]]:
 async def run(settings: Settings) -> None:
     """Ana koşum döngüsü."""
     db = Database(settings)
-    snapshots = SnapshotStore(frigate_url="http://frigate:5000")
+    snapshots = SnapshotStore(frigate_url=settings.frigate_internal_url)
     mqtt = MqttClient(settings)
 
     await db.connect()
@@ -147,7 +147,16 @@ async def _listen_loop(
             zsm = state_machines.get(zone_cfg.name)
             if zsm is None:
                 continue
-            await zsm.on_event(event)
+            try:
+                await zsm.on_event(event)
+            except Exception as exc:  # noqa: BLE001
+                # Bir zone'daki hata diğer zone'ları veya listener'ı durdurmasın.
+                log.error(
+                    "zone.event_handling_failed",
+                    zone=zone_cfg.name,
+                    event_id=event.event_id,
+                    error=str(exc),
+                )
 
 
 async def _tick_loop(

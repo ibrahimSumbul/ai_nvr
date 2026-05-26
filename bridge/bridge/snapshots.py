@@ -25,7 +25,6 @@ class SnapshotStore:
         base_dir: Path = Path("/var/lib/ainvr/snapshots"),
         timeout: float = 10.0,
     ) -> None:
-        self._frigate_url = frigate_url
         self._base_dir = base_dir
         self._client = httpx.AsyncClient(
             base_url=frigate_url,

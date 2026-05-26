@@ -1,7 +1,7 @@
 """Zone state machine — docs/04-zone-rules.md.
 
 Her zone iki state arasında geçer:
-- EMPTY:    alan boş, ilk giriş `first_entry` üretir + alarm
+- EMPTY:    alan boş, ilk giriş `first_entry` üretir + (koşullarda) alarm
 - OCCUPIED: alanda en az bir takip edilen obje var, sessiz heartbeat
 
 Exit ölçütü: son event'ten beri `exit_timeout_seconds` geçtiyse OCCUPIED → EMPTY.
@@ -11,6 +11,10 @@ edilir.
 Tasarım kararları:
 - Dedup: aynı Frigate tracking ID'sinin tekrar tekrar gelmesi heartbeat sayılır.
 - Restart recovery: son DB event'inden state geri yüklenir (in-flight olayı kaçırma).
+- **DB insert HER ZAMAN yapılır** (analiz için event log). Alarm tetikleme ayrı
+  bir karar: `first_entry_alarm AND active_hour AND alert_on_empty_arrival`
+  üçlüsü `alarm_emitted=True` üretir, M4'te Dahua external alarm bu flag ile
+  tetiklenecek. Mesai dışı yapılan girişler de kayıt altında kalır.
 - Tüm zaman karşılaştırmaları enjekte edilen `clock` ile yapılır (test edilebilirlik).
 """
 
@@ -18,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 import structlog
 
@@ -96,11 +100,22 @@ class ZoneStateMachine:
     # ---- recovery ----
 
     async def restore_from_db(self) -> None:
-        """Restart sonrası son state'i DB'den yükle."""
+        """Restart sonrası son state'i DB'den yükle.
+
+        Şu an sadece `first_entry` ile recovery yapılır. Gelecekte
+        `still_present` heartbeat event'i eklendiğinde (M2.5+) bu fonksiyon
+        genişletilmeli; aksi halde son event `still_present` ise yanlışlıkla
+        EMPTY varsayılır.
+        """
         last = await self._db.get_zone_last_event(self._cfg.name)
         if not last:
             return
         if last["event_type"] != "first_entry":
+            log.info(
+                "zone.restore_skipped",
+                zone=self._cfg.name,
+                last_event_type=last["event_type"],
+            )
             return
         elapsed = (self._clock() - last["ts"]).total_seconds()
         if elapsed >= self._cfg.rules.exit_timeout_seconds:
@@ -148,12 +163,15 @@ class ZoneStateMachine:
         # OCCUPIED → heartbeat, DB'ye yazılmaz
 
     async def _handle_first_entry(self, event: FrigateEvent, now: datetime) -> None:
+        """Boş alana ilk giriş.
+
+        State EMPTY → OCCUPIED geçişi yapılır.
+        DB insert HER ZAMAN yapılır (event log; analiz için kayıtta kalmalı).
+        Alarm tetikleme ayrı karar: `first_entry_alarm AND active_hour AND
+        alert_on_empty_arrival` koşulunda `alarm_emitted=True` metadata'ya yazılır.
+        M4'te Dahua external alarm bu flag'e bakacak.
+        """
         cfg = self._cfg
-        is_active = _is_within_active_hours(now, cfg.rules.active_hours)
-        if not is_active and cfg.rules.alert_on_empty_arrival:
-            # Mesai dışı dışındaki saatlerde sessiz log
-            log.info("zone.first_entry_inactive_hours", zone=cfg.name)
-            return
 
         self._state = "OCCUPIED"
         self._since = now
@@ -164,6 +182,17 @@ class ZoneStateMachine:
             if saved is not None:
                 snapshot_path = str(saved)
 
+        is_active = _is_within_active_hours(now, cfg.rules.active_hours)
+        alarm_emitted = (
+            cfg.rules.first_entry_alarm and is_active and cfg.rules.alert_on_empty_arrival
+        )
+
+        metadata: dict[str, Any] = {
+            "label": event.label,
+            "active_hour": is_active,
+            "alarm_emitted": alarm_emitted,
+        }
+
         await self._db.insert_zone_event(
             zone=cfg.name,
             camera_id=event.camera,
@@ -172,15 +201,19 @@ class ZoneStateMachine:
             score=event.score,
             frigate_event_id=event.event_id,
             snapshot_path=snapshot_path,
-            metadata={"label": event.label},
+            metadata=metadata,
         )
         log.info(
             "zone.first_entry",
             zone=cfg.name,
             event_id=event.event_id,
             score=round(event.score, 3),
+            alarm_emitted=alarm_emitted,
+            active_hour=is_active,
         )
-        # M4'te buraya Dahua alarm tetiklemesi eklenecek
+        # M4'te buraya Dahua alarm tetiklemesi eklenecek:
+        # if alarm_emitted:
+        #     await self._dahua.trigger_external_alarm(event.camera, "person_entered")
 
     async def tick(self, now: datetime | None = None) -> None:
         """Periyodik exit kontrolü. M2'de 10 sn'de bir çağrılır."""
@@ -190,7 +223,7 @@ class ZoneStateMachine:
             return
         ts = now or self._clock()
         elapsed = (ts - self._last_seen).total_seconds()
-        if elapsed > self._cfg.rules.exit_timeout_seconds:
+        if elapsed >= self._cfg.rules.exit_timeout_seconds:
             await self._handle_exit(ts)
 
     async def _handle_exit(self, now: datetime) -> None:
@@ -199,12 +232,16 @@ class ZoneStateMachine:
         if self._since is not None:
             duration_s = (now - self._since).total_seconds()
 
+        metadata: dict[str, float] = {}
+        if duration_s is not None:
+            metadata["duration_s"] = duration_s
+
         await self._db.insert_zone_event(
             zone=cfg.name,
             camera_id=cfg.camera,
             event_type="exit",
             ts=now,
-            metadata={"duration_s": duration_s} if duration_s else {},
+            metadata=metadata,
         )
         log.info("zone.exit", zone=cfg.name, duration_s=duration_s)
 

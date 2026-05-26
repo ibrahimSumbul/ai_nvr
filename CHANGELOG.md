@@ -7,6 +7,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M2 — Tek kamera pilot**
+- `bridge/events.py` — Pydantic `FrigateEvent` / `FrigateObject` (extra=allow ile Frigate sürüm toleransı)
+- `bridge/zone_config.py` — `ZoneRules` / `ZoneConfig` / `ZonesConfig` Pydantic + YAML loader (room + door şeması, M6.5 için door alanları şimdiden tanımlı)
+- `bridge/zones.py` — `ZoneStateMachine` (EMPTY/OCCUPIED + restore_from_db + active_hours overnight + clock injection). **DB insert HER ZAMAN, alarm tetikleme ayrı karar** (`first_entry_alarm AND active_hour AND alert_on_empty_arrival` → `alarm_emitted` metadata)
+- `bridge/snapshots.py` — Frigate `/api/events/<id>/snapshot.jpg` async fetcher (httpx)
+- `bridge/db.py` — `insert_zone_event` + `get_zone_last_event` eklendi
+- `bridge/main.py` — listener refactor: FrigateEvent parse + cameras_to_zones routing + 10s tick loop + zone başına exception izolasyonu
+- `bridge/config/zones.yaml` — pilot_zone tanımı
+- `frigate/config.yml` — pilot_kamera (RTSP: `host.docker.internal:8554/cam_test`) + zone_pilot polygon
+- `docker-compose.yml` — bridge image `0.2.0`, `./bridge/config:/app/config:ro` bind mount
+- `bridge/pyproject.toml` — `pyyaml>=6.0.2` deps
+- 28 yeni unit test (test_events.py: 6, test_zones.py: 22 — state transitions, dedup, exit timeout, active_hours, alarm/DB insert ayrımı, re-entry, restore non-first_entry)
+
 **M1 — Docker iskelet**
 - `docker-compose.yml` — Frigate, Postgres 16, Mosquitto 2, Grafana 11, Bridge servisi
 - `bridge/` Python 3.13 servisi:
