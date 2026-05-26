@@ -88,15 +88,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 - **Kamera offline alarm**: 60 sn frame yok → uyarı; kritik kameralar için anlık e-posta
 - `10-why-frigate.md` eklendi: saf Haiku neden yapılmaz teknik gerekçeler
 
+### Changed
+
+**M2.5 — Sıkılaştırma (M3 öncesi pre-flight)**
+- **Mosquitto auth**: `allow_anonymous false` + `password_file /tmp/passwd`. Container entrypoint env'den (`MQTT_USER`/`MQTT_PASSWORD`) runtime'da passwd üretir, host'a sızmaz. Anonymous istekler `Connection Refused: not authorised`. Healthcheck artık auth ile.
+- **Frigate auth sıkılaştırma**: `frigate/config.yml`'e açık `auth: enabled + trusted_proxies: [] + reset_admin_password: true`. Docker network internal istekleri artık anonymous-admin olarak geçmiyor; manuel login zorunlu. Yeni admin parolası her restart'ta log'a basılır.
+- **Frigate `/config` persist**: yeni `frigate-config` named volume `/config`'e mount edildi. User DB + JWT secret + history recreate'te kayboluyor değil. `config.yml` ayrı RO bind mount olarak host'tan editlenebilir.
+- **mypy strict zorunlu**: `.github/workflows/ci.yml`'de `continue-on-error: true` kaldırıldı. CI'da type hatası artık build'i kırar.
+- **`dependency-groups` ile milestone-bazlı install**: `bridge/pyproject.toml`'da `[project].dependencies` sadece core (asyncpg, aiomqtt, pydantic, httpx, structlog, alembic, psycopg, pyyaml). M3+ deps `[dependency-groups]` altında `llm = ["anthropic"]` ve `viewer = ["fastapi", "uvicorn[standard]"]` olarak ayrıldı. Dockerfile build arg `INSTALL_LLM`/`INSTALL_VIEWER` ile aktive (default false → core-only image).
+- **`uv.lock` commit edildi**: `.gitignore`'tan `uv.lock` kaldırıldı, lock dosyası repo'ya alındı. CI `uv sync --frozen` ile lock'tan sapmayı engelliyor (reproducible build). Dockerfile da `--frozen` kullanıyor.
+
 ### Notes
-- M1: `uv.lock` şu an commit edilmiyor; ilk `uv sync` çalıştırıldığında üretilir. M2.5'te lock dosyası repo'ya alınacak (reproducible build).
 - M1: Frigate UI dev port'u **5100** (`5100:5000`). macOS'te 5000'i AirPlay Receiver tutuyor; bu seçim **macOS dev için zorunlu**. Linux production'da reverse proxy (443) arkasında host portu önemsiz, gerekirse 5000'e dönülebilir.
 - M1: Grafana provisioning boş; M5'te dashboard'lar provision edilecek.
+- M2.5: Frigate `reset_admin_password: true` aktif — her restart'ta admin parolası yeniden üretilir (log'a basılır). M3'te kullanıcı admin pass'ını UI'dan değiştirip config'i `false`'a alabilir.
 - M0: M1 ile birlikte çalışan kod artık mevcut.
-
-### Known Issues (M2.5'te ele alınacak)
-- **Mosquitto anonymous bağlantı kabul ediyor**. `mosquitto.conf`'ta `allow_anonymous true` — M1 only. M2.5'te user/password auth + `password_file` eklenir.
-- **CI'da `mypy continue-on-error: true`** — M1 grace period. Strict typing M2.5'te zorunlu hale getirilir.
-- **bridge image'ı M3+ dependency'leri de içeriyor** (`anthropic`, `fastapi`, `httpx`). M2.5'te `dependency-groups` ile milestone-bazlı incremental install'a geçilecek.
-- **Frigate auth bypass**: `auth: enabled` (default) olmasına rağmen Docker network internal isteklere `{"username":"anonymous","role":"admin"}` cevabı veriyor. Login formu görünmez. M2.5'te `trusted_proxies: []` whitelist + `reset_admin_password: true` + reverse proxy auth ile sıkılaştırılır.
-- **Frigate `/config/frigate.db` persist edilmiyor**. Her `docker compose up -d frigate` recreate'inde user DB + history kayboluyor, admin yeniden yaratılıyor (yeni rastgele şifre log'a basılıyor). M2.5'te `./frigate/storage:/config` bind mount eklenir.

@@ -24,8 +24,8 @@ jobs:
       - name: Python 3.13 kur
         run: uv python install 3.13
 
-      - name: Bağımlılıkları yükle
-        run: uv sync
+      - name: Bağımlılıkları yükle (frozen — uv.lock'tan)
+        run: uv sync --frozen
 
       - name: Lint (ruff check)
         run: uv run ruff check .
@@ -33,9 +33,8 @@ jobs:
       - name: Format kontrolü (ruff format --check)
         run: uv run ruff format --check .
 
-      - name: Type kontrolü (mypy)
+      - name: Type kontrolü (mypy — M2.5'ten itibaren strict zorunlu)
         run: uv run mypy bridge
-        continue-on-error: true
 
       - name: Unit testler (integration hariç)
         run: uv run pytest -v -m "not integration"
