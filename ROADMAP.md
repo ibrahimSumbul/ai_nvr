@@ -82,7 +82,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [ ] **Frigate auth sıkılaştırma**: `frigate/config.yml`'e açık `auth:` tanımı, `trusted_proxies: []` (boş whitelist), `reset_admin_password: true` (ilk login zorlanır)
 - [ ] **Frigate `/config` persist**: `./frigate/storage:/config` named volume — recreate'te user DB + history kaybolmasın
 - [ ] **mypy strict zorunlu**: `.github/workflows/ci.yml`'de `continue-on-error: true` kaldır
-- [ ] **`dependency-groups` ile incremental install**: `bridge/pyproject.toml`'de `[core]`, `[llm]`, `[viewer]` grupları; Dockerfile sadece kullanılan grupları install eder
+- [ ] **`dependency-groups` ile incremental install**: M3+ deps (`anthropic`, `fastapi`, `httpx`) `bridge/pyproject.toml`'de `[project].dependencies`'ten `[dependency-groups]` altındaki `[llm]` ve `[viewer]` gruplarına taşınır; Dockerfile build arg ile aktif grupları seçer. (Mevcut `[dependency-groups]` tablosu zaten `dev` için kurulu — PEP 735 altyapısı hazır, sadece M3+ deps'leri taşınacak.)
 - [ ] **`uv.lock` commit edilir**: ilk `uv sync` lock üretir, repo'ya alınır (reproducible build), CI `uv sync --frozen` kullanır
 
 **Doğrulama**: M1 stack hala healthy + Mosquitto auth fail edince bağlantı reddedilir + Frigate manual login zorunlu + mypy CI fail edebilir + `docker compose pull && up -d` her seferinde aynı bridge image hash'i.
