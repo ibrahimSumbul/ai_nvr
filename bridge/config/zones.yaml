@@ -16,9 +16,11 @@ zones:
       active_hours: "00:00-23:59"
       alert_on_empty_arrival: true
 
-  - name: cam_depo_zone
+  # Sarı uyarı bandının üst tarafı — kısıtlı bölge. Person girince first_entry
+  # alarmı tetiklenir. Polygon Frigate config'inde cam_depo_uyari.
+  - name: cam_depo_uyari_zone
     camera: cam_depo
-    frigate_zone: cam_depo_zone
+    frigate_zone: cam_depo_uyari
     rules:
       enabled: true
       type: room

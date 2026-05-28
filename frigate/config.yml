@@ -86,8 +86,13 @@ cameras:
       height: 480
       fps: 5
     zones:
-      cam_depo_zone:
-        coordinates: 0,480,640,480,640,0,0,0
+      # Sarı uyarı bandının ÜST tarafı — kısıtlı bölge.
+      # Diagonal şerit sol-alttan sağ-ortaya gider; polygon clockwise olarak
+      # (0,0) sol-üst → (640,0) sağ-üst → (640,240) sağ kenarda çizgi kesişimi
+      # → (64,470) sol kenara yakın çizgi başlangıcı → (0,470) sol-alt.
+      # Koordinatlar görselden tahmin — Frigate UI > zone editor ile ince ayar.
+      cam_depo_uyari:
+        coordinates: 0,0,640,0,640,240,64,470,0,470
 
   cam_kapi:
     ffmpeg:
