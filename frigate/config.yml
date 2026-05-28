@@ -1,10 +1,8 @@
-# Frigate konfigürasyonu — M1 iskelet, henüz kamera yok.
-# M2'de gerçek kameralar docs/05-dahua-integration.md'ye göre eklenir.
+# Frigate konfigürasyonu — M5 5 kamera (cam_depo, cam_kapi, cam_magaza, cam_test, cam_yaya).
+# Stream'ler mac host'taki MediaMTX'ten okunur (rtsp://host.docker.internal:8554/...).
+# Production'da gerçek Dahua kameralar, bkz. docs/05-dahua-integration.md.
 
 # M2.5 sıkılaştırma: auth açık, anonymous bypass kapalı, manuel login zorunlu.
-# `reset_admin_password: true` ilk açılışta admin parolası reset edip log'a yazar
-# (sonraki açılışlarda log'ta yeni parola görünür). M3'te `false` yapıldığında
-# sabit kalır.
 auth:
   enabled: true
   # M3'ten itibaren false: kullanıcı admin parolasını UI'dan değiştirip
@@ -27,9 +25,9 @@ detectors:
     type: cpu
     num_threads: 3
 
-# Global detect — kamera bazında override edilir
+# Global detect default — kamera bazında override edilir
 detect:
-  enabled: false  # M2'de aktif olur
+  enabled: false
   width: 640
   height: 480
   fps: 5
@@ -60,23 +58,75 @@ objects:
       min_score: 0.5
       threshold: 0.6
 
+# Tüm kameralar 640x480 @ 5fps, full-frame zone.
+# Polygon'lar kameranın gerçek görüş alanına göre M5 ilerleyişinde daraltılır.
 cameras:
-  # M2 pilot kamera — MediaMTX üzerinden test stream.
-  # Dev (macOS): rtsp://host.docker.internal:8554/cam_test (mac host'taki MediaMTX)
-  # Prod: gerçek Dahua kamera, bkz. docs/05-dahua-integration.md
-  pilot_kamera:
+  cam_test:
     ffmpeg:
       inputs:
         - path: rtsp://host.docker.internal:8554/cam_test
           roles: [detect]
-      # input_args belirtmiyoruz; Frigate default TCP transport kullanır
     detect:
       enabled: true
       width: 640
       height: 480
       fps: 5
     zones:
-      # M2 pilot için tüm frame zone olarak işaretlendi (clockwise polygon).
-      # Sonraki milestone'larda daraltılır.
-      zone_pilot:
+      cam_test_zone:
+        coordinates: 0,480,640,480,640,0,0,0
+
+  cam_depo:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_depo
+          roles: [detect]
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    zones:
+      cam_depo_zone:
+        coordinates: 0,480,640,480,640,0,0,0
+
+  cam_kapi:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_kapi
+          roles: [detect]
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    zones:
+      cam_kapi_zone:
+        coordinates: 0,480,640,480,640,0,0,0
+
+  cam_magaza:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_magaza
+          roles: [detect]
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    zones:
+      cam_magaza_zone:
+        coordinates: 0,480,640,480,640,0,0,0
+
+  cam_yaya:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_yaya
+          roles: [detect]
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    zones:
+      cam_yaya_zone:
         coordinates: 0,480,640,480,640,0,0,0
