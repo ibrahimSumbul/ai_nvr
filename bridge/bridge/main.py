@@ -22,8 +22,10 @@ import structlog
 from bridge.config import Settings, get_settings
 from bridge.db import Database
 from bridge.events import FrigateEvent
+from bridge.llm import build_llm_client
 from bridge.mqtt import MqttClient
 from bridge.snapshots import SnapshotStore
+from bridge.trucks import TruckEventHandler, build_truck_handler
 from bridge.zone_config import ZoneConfig, ZonesConfig, load_zones_config
 from bridge.zones import ZoneStateMachine
 
@@ -70,6 +72,8 @@ async def run(settings: Settings) -> None:
     db = Database(settings)
     snapshots = SnapshotStore(frigate_url=settings.frigate_internal_url)
     mqtt = MqttClient(settings)
+    llm = build_llm_client(settings)
+    truck_handler = build_truck_handler(settings, db, snapshots, llm)
 
     await db.connect()
 
@@ -87,6 +91,8 @@ async def run(settings: Settings) -> None:
         budget_usd=settings.llm_monthly_budget_usd,
         zones=len(state_machines),
         cameras=len(cameras_to_zones),
+        llm_provider=settings.llm_provider,
+        llm_model=settings.llm_ollama_model if settings.llm_provider == "ollama" else "n/a",
     )
 
     stop_event = asyncio.Event()
@@ -99,7 +105,9 @@ async def run(settings: Settings) -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, _handle_stop)
 
-    listener = asyncio.create_task(_listen_loop(mqtt, state_machines, cameras_to_zones, stop_event))
+    listener = asyncio.create_task(
+        _listen_loop(mqtt, state_machines, cameras_to_zones, truck_handler, stop_event)
+    )
     ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
 
     try:
@@ -110,6 +118,7 @@ async def run(settings: Settings) -> None:
         for task in (listener, ticker):
             with contextlib.suppress(asyncio.CancelledError):
                 await task
+        await llm.close()
         await snapshots.close()
         await db.close()
         log.info("bridge.shutdown_complete")
@@ -119,9 +128,10 @@ async def _listen_loop(
     mqtt: MqttClient,
     state_machines: dict[str, ZoneStateMachine],
     cameras_to_zones: dict[str, list[ZoneConfig]],
+    truck_handler: TruckEventHandler,
     stop_event: asyncio.Event,
 ) -> None:
-    """MQTT event akışını state machine'lere dağıt."""
+    """MQTT event akışını state machine'lere ve truck handler'a dağıt."""
     async for message in mqtt.listen("frigate/events"):
         if stop_event.is_set():
             break
@@ -137,6 +147,16 @@ async def _listen_loop(
                 error=str(exc),
             )
             continue
+
+        # Truck event flow (M3): label == "truck" filter trucks.py içinde
+        try:
+            await truck_handler.on_event(event)
+        except Exception as exc:  # noqa: BLE001
+            log.error(
+                "truck.handler_failed",
+                event_id=event.event_id,
+                error=str(exc),
+            )
 
         zones_for_cam = cameras_to_zones.get(event.camera, [])
         if not zones_for_cam:

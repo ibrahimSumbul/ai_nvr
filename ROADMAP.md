@@ -92,18 +92,18 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 3: LLM Entegrasyonu (Haiku)
+## Milestone 3: LLM Entegrasyonu (Ollama)
 
-**Hedef**: Tır rengi ve şüpheli olay doğrulama Haiku'ya gidiyor.
+**Hedef**: Tır rengi + dorse tipi analizi lokal Ollama vision model ile yapılıyor. Cost: $0 (electric only). Privacy: görüntüler dış servise gitmiyor.
 
-- [ ] Anthropic SDK + prompt caching kurulumu
-- [ ] `bridge/llm.py` — tır renk analiz fonksiyonu
-- [ ] JSON schema doğrulama (Pydantic)
-- [ ] Retry + timeout + cost log (her çağrının maliyetini DB'ye yaz)
-- [ ] Truck event flow: Frigate "truck" → snapshot al → Haiku → DB
-- [ ] Rate limit guard (saatlik max çağrı)
-- [ ] **M3 öncesi prereq**: `frigate/config.yml`'de `reset_admin_password: false` yap + admin parolasını güvenli yere kaydet (M2.5'te `true` bırakıldı — her restart yeni rastgele parola log'a basılıyordu)
-- [ ] **M3 öncesi prereq**: `docker-compose.yml`'de bridge `args: INSTALL_LLM: "true"` set et (anthropic image'a dahil)
+- [ ] `bridge/llm.py` — `OllamaClient` (httpx async), `LLMClient` Protocol provider-agnostic
+- [ ] `TruckAnalysis` Pydantic schema (renk enum, dorse tipi enum, guven)
+- [ ] Ollama `/api/generate` çağrısı `format=json` structured output + retry + timeout
+- [ ] Truck event flow: Frigate "truck" → SnapshotStore → OllamaClient → `truck_events` + `llm_usage` insert
+- [ ] Dedup: aynı `frigate_event_id` için tekrar LLM çağrısı yok
+- [ ] **Hibrit fallback altyapısı** (opsiyonel): `LLM_PROVIDER=anthropic` ile Anthropic SDK kullanılabilir hale gelir (gelecekte INSTALL_LLM=true)
+- [ ] **M3 öncesi prereq**: `frigate/config.yml`'de `reset_admin_password: false` set + admin parolasını güvenli yere kaydet (M2.5'te `true` bırakıldı — her restart yeni rastgele parola log'a basılıyordu)
+- [ ] **M3 öncesi prereq**: Host'ta Ollama kurulu + servis çalışıyor (`brew install ollama && ollama serve`) + vision model indirilmiş (`ollama pull qwen2.5vl:7b` veya benzer)
 
 **Doğrulama**: 1 kamyon görüntüsü ile manuel test, renk JSON çıkışı doğrulanır. Maliyet logu kontrol.
 
