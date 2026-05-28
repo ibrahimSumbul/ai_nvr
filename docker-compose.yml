@@ -100,7 +100,9 @@ services:
       dockerfile: Dockerfile
       args:
         # Milestone-bazlı dependency-groups (M2.5+).
-        # M3'te: INSTALL_LLM=true. M6.5'te: INSTALL_VIEWER=true.
+        # M3 Ollama HTTP-only — anthropic SDK gerek değil, httpx core'da.
+        # INSTALL_LLM sadece Anthropic hibrit fallback için (M3+'da opsiyonel).
+        # M6.5: INSTALL_VIEWER=true.
         INSTALL_LLM: "false"
         INSTALL_VIEWER: "false"
     image: ainvr-bridge:0.2.0

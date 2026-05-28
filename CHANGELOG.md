@@ -7,6 +7,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M3 — LLM Entegrasyonu (Ollama)**
+- `bridge/llm.py` — Provider-agnostic `LLMClient` Protocol + `OllamaClient` implementation:
+  - `httpx.AsyncClient` ile `/api/generate` (Ollama vision endpoint)
+  - `format=json` structured output, Pydantic schema parse
+  - Retry (max_retries default 2) + timeout (default 60s)
+  - `TruckAnalysis` Pydantic: Color enum (16 renk), TrailerType enum, Direction enum, guven (0.0-1.0)
+  - `LLMResult` wrapper: parsed + raw + model + latency_ms + tokens + cost (Ollama'da 0)
+  - `LLMError` exception — tüm retry'lar başarısız olunca yükselir
+- `bridge/trucks.py` — `TruckEventHandler`:
+  - Filter: `label == "truck"` + `score >= LLM_TRUCK_MIN_SCORE` (default 0.6)
+  - Snapshot fetch (mevcut SnapshotStore)
+  - LLM analyze → `llm_usage` + `truck_events` insert
+  - Dedup: memory cache + DB sorgu (`truck_event_exists`)
+  - LLM hata durumunda `llm_usage.success=false` + `error` yazılır, `truck_events` boş bırakılır
+- `bridge/db.py` — `insert_llm_usage` + `insert_truck_event` + `truck_event_exists` fonksiyonları
+- `bridge/config.py` — yeni LLM env vars:
+  - `LLM_PROVIDER` (default `ollama`; `anthropic` hibrit fallback için kayıtlı)
+  - `LLM_OLLAMA_URL` (default `http://host.docker.internal:11434` — mac host'taki native ollama)
+  - `LLM_OLLAMA_MODEL` (default `qwen2.5vl:7b`, `.env` ile override)
+  - `LLM_TIMEOUT_S` (60s), `LLM_MAX_RETRIES` (2), `LLM_TRUCK_MIN_SCORE` (0.6)
+- `bridge/main.py` refactor: `build_llm_client` + `build_truck_handler` + `_listen_loop`'a truck handler bağlandı (zone'lara paralel akış)
+- `.env.example` — LLM env değişkenleri eklendi, Anthropic ayrı tutuldu (hibrit gelecek)
+- 14 yeni unit test:
+  - `test_llm.py` (7): TruckAnalysis Pydantic parsing, invalid color/trailer_type/guven, extra field tolerance, JSON string parse
+  - `test_trucks.py` (7): success path, non-truck label, low score, dedup (memory + DB), no_snapshot, LLM failure
+
+**M3 prereq commit** (frigate/config.yml + docker-compose.yml):
+- `frigate/config.yml`: `reset_admin_password: true → false` (admin parolası artık sabit, ilk login sonrası UI'dan değiştirilir)
+- `docker-compose.yml`: bridge `INSTALL_LLM: "false"` olarak kaldı — M3 Ollama HTTP-only, anthropic SDK image'a girmiyor (httpx core'da)
+
 **M2 — Tek kamera pilot**
 - `bridge/events.py` — Pydantic `FrigateEvent` / `FrigateObject` (extra=allow ile Frigate sürüm toleransı)
 - `bridge/zone_config.py` — `ZoneRules` / `ZoneConfig` / `ZonesConfig` Pydantic + YAML loader (room + door şeması, M6.5 için door alanları şimdiden tanımlı)

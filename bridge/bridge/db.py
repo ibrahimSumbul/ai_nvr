@@ -113,3 +113,106 @@ class Database:
                 zone,
             )
             return dict(row) if row else None
+
+    # ---- LLM usage (M3+) ----
+
+    async def insert_llm_usage(
+        self,
+        call_type: str,
+        model: str,
+        input_tokens: int,
+        output_tokens: int,
+        cached_input_tokens: int,
+        cost_usd: float,
+        latency_ms: int,
+        success: bool,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> int:
+        """LLM çağrı log'u — Ollama'da cost_usd=0 (electric)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO llm_usage
+                    (call_type, model, input_tokens, output_tokens,
+                     cached_input_tokens, cost_usd, latency_ms, success,
+                     error, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+                RETURNING id
+                """,
+                call_type,
+                model,
+                input_tokens,
+                output_tokens,
+                cached_input_tokens,
+                cost_usd,
+                latency_ms,
+                success,
+                error,
+                json.dumps(metadata or {}),
+            )
+            return int(row["id"])
+
+    # ---- Truck events (M3+) ----
+
+    async def insert_truck_event(
+        self,
+        camera_id: str,
+        ts: datetime,
+        cekici_rengi: str | None,
+        dorse_var_mi: bool,
+        dorse_rengi: str | None,
+        dorse_tipi: str | None,
+        yon: str | None,
+        guven: float,
+        notlar: str | None,
+        snapshot_path: str | None,
+        llm_usage_id: int | None,
+        frigate_event_id: str | None = None,
+    ) -> int:
+        """Truck color analysis sonucu DB'ye yaz."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO truck_events
+                    (camera_id, ts, cekici_rengi, dorse_var_mi, dorse_rengi,
+                     dorse_tipi, yon, guven, notlar, snapshot_path, llm_usage_id,
+                     metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb)
+                RETURNING id
+                """,
+                camera_id,
+                ts,
+                cekici_rengi,
+                dorse_var_mi,
+                dorse_rengi,
+                dorse_tipi,
+                yon,
+                guven,
+                notlar,
+                snapshot_path,
+                llm_usage_id,
+                json.dumps({"frigate_event_id": frigate_event_id} if frigate_event_id else {}),
+            )
+            log.info(
+                "truck_event.inserted",
+                id=row["id"],
+                camera_id=camera_id,
+                cekici_rengi=cekici_rengi,
+                dorse_rengi=dorse_rengi,
+                guven=round(guven, 2),
+            )
+            return int(row["id"])
+
+    async def truck_event_exists(self, frigate_event_id: str) -> bool:
+        """Aynı tracking ID için truck_events'te kayıt var mı (dedup)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT 1 FROM truck_events
+                WHERE metadata->>'frigate_event_id' = $1
+                LIMIT 1
+                """,
+                frigate_event_id,
+            )
+            return row is not None

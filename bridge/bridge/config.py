@@ -40,7 +40,16 @@ class Settings(BaseSettings):
     dahua_nvr_user: str = Field(default="admin")
     dahua_nvr_password: str = Field(default="")
 
-    # LLM bütçe
+    # LLM (M3+). Default Ollama (lokal). Anthropic fallback ileride eklenir.
+    llm_provider: str = Field(default="ollama")  # 'ollama' | 'anthropic' (gelecek)
+    llm_ollama_url: str = Field(default="http://host.docker.internal:11434")
+    llm_ollama_model: str = Field(default="qwen2.5vl:7b")  # .env ile override edilir
+    llm_timeout_s: float = Field(default=60.0, ge=5.0, le=300.0)
+    llm_max_retries: int = Field(default=2, ge=0, le=5)
+    # Minimum truck label score — Frigate bu altındaysa LLM çağrılmaz
+    llm_truck_min_score: float = Field(default=0.6, ge=0.0, le=1.0)
+
+    # LLM bütçe (anthropic kullanırsa)
     llm_monthly_budget_usd: float = Field(default=10.0)
 
     # SMTP (M6.5+)
