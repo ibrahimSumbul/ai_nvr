@@ -98,7 +98,6 @@ cameras:
       cam_depo_uyari:
         coordinates: 0,0.158,0.119,0.144,0.506,0.483,0.204,1,0,1
         inertia: 3            # 3 ardışık frame kararlı olmadan trigger yok
-        loitering_time: 0     # anında alarm (Frigate default)
 
   cam_kapi:
     ffmpeg:

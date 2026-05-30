@@ -156,6 +156,21 @@ ainvr-bridge      Up (healthy)
 ainvr-grafana     Up (healthy)   0.0.0.0:3000->3000/tcp
 ```
 
+### Frigate config mount mode
+
+`docker-compose.yml`'de `./frigate/config.yml` bind mount mode `FRIGATE_CONFIG_MODE` env var ile kontrol edilir:
+
+- **Dev (`rw`, default)** — Frigate UI Zone Editor'dan polygon/zone değişiklikleri host dosyasına persist eder, `git diff` ile görüp commit'leyebilirsin.
+- **Production (`ro`)** — Mount read-only. Config sadece git üzerinden değişir; UI'dan yapılan save başarısız olur. CI/CD ile config değişiklikleri kontrollü hale gelir.
+
+`.env`'de:
+```bash
+FRIGATE_CONFIG_MODE=rw   # dev (default)
+# FRIGATE_CONFIG_MODE=ro # production
+```
+
+Mode değişiklikten sonra `docker compose up -d frigate` ile frigate container'ı recreate gerekir (mount değişikliği için).
+
 ## Adım 6: Doğrulama
 
 ### Frigate UI

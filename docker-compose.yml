@@ -77,11 +77,11 @@ services:
     volumes:
       # M2.5: /config tüm dizin named volume — user DB, JWT secret, history persist
       - frigate-config:/config
-      # config.yml bind mount (RW dev için — Frigate UI Zone Editor'dan save'ler
-      # host dosyasına yansır, git'te diff olarak görünür ve commit edilir.
-      # Production'da `:ro` ekleyerek değişiklikler sadece git üzerinden gelir;
-      # ileride env-driven hale getirilebilir: `:${FRIGATE_CONFIG_MODE:-rw}`)
-      - ./frigate/config.yml:/config/config.yml
+      # config.yml bind mount mode env-driven: dev'de rw (Frigate UI Zone Editor
+      # save'leri host dosyasına yansır), production'da ro (config sadece git
+      # üzerinden değişir). FRIGATE_CONFIG_MODE set değilse default rw.
+      # Bkz: docs/03-setup.md > "Frigate config mount mode".
+      - ./frigate/config.yml:/config/config.yml:${FRIGATE_CONFIG_MODE:-rw}
       - frigate-storage:/media/frigate
       - /etc/localtime:/etc/localtime:ro
     ports:
