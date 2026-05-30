@@ -44,10 +44,15 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="ollama")  # 'ollama' | 'anthropic' (gelecek)
     llm_ollama_url: str = Field(default="http://host.docker.internal:11434")
     llm_ollama_model: str = Field(default="qwen2.5vl:7b")  # .env ile override edilir
-    llm_timeout_s: float = Field(default=60.0, ge=5.0, le=300.0)
+    # Timeout: CPU inference yavaş (ilk soğuk çağrı + vision encode 60s'i aşabilir).
+    # Coral/GPU yokken 90s güvenli marj; M6 sonrası düşürülebilir.
+    llm_timeout_s: float = Field(default=90.0, ge=5.0, le=300.0)
     llm_max_retries: int = Field(default=2, ge=0, le=5)
     # Minimum truck label score — Frigate bu altındaysa LLM çağrılmaz
     llm_truck_min_score: float = Field(default=0.6, ge=0.0, le=1.0)
+    # LLM'e gönderilen snapshot max yüksekliği (px). Frigate server-side resize
+    # (?height=N). Renk analizi için 480px yeterli, büyük kaynakta latency'yi sınırlar.
+    llm_snapshot_max_height: int = Field(default=480, ge=120, le=2160)
 
     # LLM bütçe (anthropic kullanırsa)
     llm_monthly_budget_usd: float = Field(default=10.0)
