@@ -86,13 +86,19 @@ cameras:
       height: 480
       fps: 5
     zones:
-      # Sarı uyarı bandının ÜST tarafı — kısıtlı bölge.
-      # Diagonal şerit sol-alttan sağ-ortaya gider; polygon clockwise olarak
-      # (0,0) sol-üst → (640,0) sağ-üst → (640,240) sağ kenarda çizgi kesişimi
-      # → (64,470) sol kenara yakın çizgi başlangıcı → (0,470) sol-alt.
-      # Koordinatlar görselden tahmin — Frigate UI > zone editor ile ince ayar.
+      # Sarı-siyah uyarı bandının SOL-üst tarafı — kısıtlı bölge.
+      # UI Zone Editor ile çizildi, normalize (0-1) clockwise polygon:
+      #   (0,    0.158)  sol kenarda, üstten ~%16 aşağıda
+      #   (0.119,0.144)  içeri açılış, biraz daha yukarıda
+      #   (0.506,0.483)  görüntü merkezine çapraz iniş (sarı bandın orta noktası)
+      #   (0.204,1)      alt kenarda, soldan ~%20
+      #   (0,    1)      sol-alt köşe (kapanış)
+      # Sarı bandın sağ tarafındaki person'lar (ana geçiş alanı) zone dışında.
+      # Frigate zone trigger için bbox bottom-center (ayak konumu) bakılır.
       cam_depo_uyari:
-        coordinates: 0,0,640,0,640,240,64,470,0,470
+        coordinates: 0,0.158,0.119,0.144,0.506,0.483,0.204,1,0,1
+        inertia: 3            # 3 ardışık frame kararlı olmadan trigger yok
+        loitering_time: 0     # anında alarm (Frigate default)
 
   cam_kapi:
     ffmpeg:
