@@ -4,6 +4,9 @@
 [![Faz: M4 tamam · M5 sürüyor](https://img.shields.io/badge/Faz-M4%20tamam%20·%20M5%20sürüyor-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
 [![Test: 60 unit · ruff · mypy strict](https://img.shields.io/badge/Test-60%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
+[![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/commits/main)
+[![Issues](https://img.shields.io/github/issues/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/issues)
 
 Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
 
@@ -138,6 +141,17 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf LLM ile yapılamaz mı? |
 | [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
+
+## Katkı
+
+Bu MIT lisanslı bir referans mimaridir. İterasyon hoş karşılanır:
+
+- **Mimari soru veya öneri** — [GitHub Issues](https://github.com/ibrahimSumbul/ai_nvr/issues) (etiket: `discussion`)
+- **Hata bildirimi** — Issue açın; reproduksiyon adımları, log çıktısı (PII'siz), Docker compose versiyonu ekleyin
+- **Pull Request** — [`ROADMAP.md`](ROADMAP.md)'deki milestone'larla uyumlu olan değişiklikler öncelikli; uyumlu olmayan PR'lar için önce bir Issue ile tartışalım
+- **Doküman katkısı** — `docs/` altındaki 11 dokümandan herhangi birinde düzeltme/iyileştirme açık PR olarak gelebilir
+
+> KVKK / GDPR farkındalığı: Issue veya PR'da gerçek kamera görüntüsü, kişi yüzü, plaka veya tesise özgü bilgi paylaşmayın. Test verisi için sentetik / mock kullanın.
 
 ## Lisans
 
