@@ -114,6 +114,68 @@ class Database:
             )
             return dict(row) if row else None
 
+    # ---- Dahua alarm tracking (M4) ----
+
+    async def mark_dahua_alarm_sent(self, zone_event_id: int) -> None:
+        """Bir zone event için Dahua alarm başarıyla gönderildi olarak işaretle."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE zone_events SET dahua_alarm_sent = TRUE WHERE id = $1",
+                zone_event_id,
+            )
+
+    async def increment_dahua_retry(self, zone_event_id: int) -> int:
+        """Dahua alarm retry sayacını artır, yeni değeri döndür."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE zone_events
+                SET dahua_alarm_retry_count = dahua_alarm_retry_count + 1
+                WHERE id = $1
+                RETURNING dahua_alarm_retry_count
+                """,
+                zone_event_id,
+            )
+            return int(row["dahua_alarm_retry_count"]) if row else 0
+
+    async def get_pending_dahua_alarms(
+        self, max_retries: int, older_than_seconds: float, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """Gönderilememiş alarm'lar (retry worker için).
+
+        Koşul: first_entry + alarm_emitted=true + henüz gönderilmemiş +
+        retry sayısı limiti aşmamış + olay `older_than_seconds`'tan eski.
+
+        `older_than_seconds` claim guard'ıdır: `_handle_first_entry` event'i
+        FALSE insert edip inline alarm denemesini *await* ettiği için (worst-case
+        ~timeout×deneme), bu pencere kapanmadan worker AYNI event'i alıp ikinci
+        kez push etmemeli. Worker bu değeri inline worst-case'den büyük verir.
+        Yan fayda: inline tamamlanmadan bridge crash olsa bile event bu süre
+        sonra worker tarafından devralınır (alarm kaybı yok).
+
+        Her worker tick'i bir event için tek `dahua_alarm_retry_count` artışı
+        sayar (içerideki inline retry'lar hariç). En eski önce (FIFO).
+        """
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, zone, camera_id, ts, dahua_alarm_retry_count,
+                       metadata
+                FROM zone_events
+                WHERE event_type = 'first_entry'
+                  AND dahua_alarm_sent = FALSE
+                  AND dahua_alarm_retry_count < $1
+                  AND (metadata->>'alarm_emitted')::bool = TRUE
+                  AND ts < (NOW() - make_interval(secs => $2))
+                ORDER BY ts ASC
+                LIMIT $3
+                """,
+                max_retries,
+                float(older_than_seconds),
+                limit,
+            )
+            return [dict(r) for r in rows]
+
     # ---- LLM usage (M3+) ----
 
     async def insert_llm_usage(
