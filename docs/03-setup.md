@@ -1,14 +1,15 @@
 # 03 — Kurulum
 
-> ✅ **M1 aktif.** Adım 1-6 (Docker iskelet + bridge + Postgres + MQTT) çalışır. Adım 7 (Dahua alarm) M4'te, Grafana dashboard'ları M5'te, kapı + e-posta + viewer M6.5'te aktive olur.
+> ✅ **Çekirdek pipeline çalışıyor** (M1–M4). Docker stack + zone state machine + Ollama tır analizi + Dahua alarm + Grafana dashboard aktif. Kapı olayları + e-posta + viewer M6.5'te eklenecek.
 
 ## Önkoşullar
 
-- Ubuntu 22.04 (kontrol: `lsb_release -a`)
+- Linux (Ubuntu 22.04 önerilir) veya macOS (dev — Colima/Docker Desktop)
 - Docker 24+ ve Docker Compose v2 (`docker compose version`)
 - Sunucu en az 8 GB boş RAM
-- Dahua kameraların RTSP URL'leri ve şifresi
-- Anthropic API key (`sk-ant-...`)
+- Dahua kameraların RTSP URL'leri ve şifresi (veya dev için MediaMTX test stream)
+- **[Ollama](https://ollama.com)** — lokal LLM (tır renk analizi). Host'ta çalışır, container ona `host.docker.internal:11434` üzerinden erişir.
+- _(Opsiyonel)_ Anthropic API key — yalnızca bulut hibrit (`LLM_PROVIDER=anthropic`) kullanılacaksa
 
 ## Adım 1: Docker kurulumu (zaten varsa atla)
 
@@ -38,9 +39,12 @@ nano .env
 Doldurulacak alanlar:
 
 ```ini
-# Anthropic
-ANTHROPIC_API_KEY=sk-ant-xxx
-ANTHROPIC_MODEL=claude-haiku-4-5-20251001
+# LLM — lokal Ollama (varsayılan, $0)
+LLM_PROVIDER=ollama
+LLM_OLLAMA_URL=http://host.docker.internal:11434
+LLM_OLLAMA_MODEL=qwen2.5vl:7b
+# (Opsiyonel) bulut hibrit:
+# ANTHROPIC_API_KEY=sk-ant-xxx
 
 # Postgres
 POSTGRES_USER=ainvr
@@ -51,16 +55,18 @@ POSTGRES_DB=ainvr
 MQTT_USER=ainvr
 MQTT_PASSWORD=<güçlü-şifre>
 
-# Dahua NVR (sadece alarm push için, RTSP değil!)
+# Dahua NVR external alarm (M4) — RTSP değil, sadece alarm push!
+# Dev'de false bırak (gerçek NVR yoksa); production'da true.
+DAHUA_ALARM_ENABLED=false
 DAHUA_NVR_HOST=192.168.10.10
 DAHUA_NVR_USER=admin
 DAHUA_NVR_PASSWORD=<NVR-şifresi>
 
+# Grafana
+GRAFANA_ADMIN_PASSWORD=<güçlü-şifre>
+
 # Frigate restream (opsiyonel — viewer için)
 FRIGATE_RTSP_PASSWORD=<frigate-restream-için>
-
-# Bütçe (PoC: 10, Production: 25)
-LLM_MONTHLY_BUDGET_USD=10
 
 # SMTP (Milestone 6.5 sonrası)
 SMTP_HOST=smtp.gmail.com
@@ -136,7 +142,20 @@ Gerçek kamera yoksa MediaMTX gibi bir RTSP sunucusu ile test stream'i kullan:
 # Container içinden erişim: rtsp://host.docker.internal:8554/cam_test
 ```
 
-`frigate/config.yml`'de `pilot_kamera` örneği bu URL'yi kullanır.
+`frigate/config.yml`'de `cam_test` örneği bu URL'yi kullanır.
+
+## Adım 4.5: Ollama modeli (lokal LLM)
+
+Tır renk analizi host'taki Ollama'da koşar. Modeli indir:
+
+```bash
+# Ollama kurulu değilse: https://ollama.com (Linux: curl -fsSL https://ollama.com/install.sh | sh)
+ollama serve          # servis çalışmıyorsa (Linux'ta systemd ile otomatik)
+ollama pull qwen2.5vl:7b   # ~5.6 GB vision model
+ollama list                # indirildiğini doğrula
+```
+
+Container Ollama'ya `host.docker.internal:11434` üzerinden erişir (Linux'ta bu host adı Docker 20.10+ ile `--add-host` olmadan da çalışır; sorun olursa `LLM_OLLAMA_URL`'i host IP'siyle ayarla).
 
 ## Adım 5: Stack'i başlat
 
@@ -155,6 +174,18 @@ ainvr-mqtt        Up (healthy)   1883/tcp
 ainvr-bridge      Up (healthy)
 ainvr-grafana     Up (healthy)   0.0.0.0:3000->3000/tcp
 ```
+
+### Veritabanı şeması (ilk kurulumda zorunlu)
+
+Tablolar Alembic migrasyonu ile oluşturulur. **Bu adım atlanırsa** bridge
+`relation "zone_events" does not exist` hatasıyla restart döngüsüne girer:
+
+```bash
+docker compose run --rm --entrypoint "" bridge alembic upgrade head
+docker compose restart bridge
+```
+
+Beklenen: `Running upgrade -> 0001, Init: zone_events, door_events, truck_events, llm_usage, camera_status`.
 
 ### Frigate config mount mode
 
@@ -187,18 +218,18 @@ Kameraya el sallayın → event gelir.
 ```bash
 docker compose logs -f bridge
 ```
-M1'de şu log satırlarını görmelisiniz:
+Şu log satırlarını görmelisiniz:
 
 ```
-bridge.starting        version=0.1.0
+bridge.starting        version=0.2.0
 db.connecting          host=postgres port=5432
 db.connected
-bridge.ready           msg='Bridge ready, waiting for events'
-mqtt.connecting        host=mqtt port=1883 topic=frigate/#
+bridge.ready           cameras=5 zones=5 llm_provider=ollama llm_model=qwen2.5vl:7b
+mqtt.connecting        host=mqtt port=1883 topic=frigate/events
 mqtt.connected
 ```
 
-`Zone state machine initialized` mesajı M2'de aktif olacak (zone state machine M2 kapsamı).
+Bir kamerada hareket olunca `zone.first_entry` + `zone_event.inserted`, bir kamyon görülünce `truck.analyzed` satırları akar.
 
 ### DB'yi kontrol
 ```bash
@@ -208,16 +239,24 @@ docker exec -it ainvr-postgres psql -U $POSTGRES_USER -d $POSTGRES_DB -c \
 
 ### Grafana
 - `http://<server-ip>:3000`
-- Username: `admin`, ilk açılışta şifre değiştirin
-- "AI NVR Overview" dashboard yüklü olmalı
+- Username: `admin`, şifre `.env` `GRAFANA_ADMIN_PASSWORD`
+- **AI NVR — Genel Bakış** dashboard otomatik provision edilir (datasource + paneller hazır).
 
-## Adım 7: Dahua entegrasyon testi
+## Adım 7: Dahua external alarm testi (M4)
+
+`.env`'de `DAHUA_ALARM_ENABLED=true` + `DAHUA_NVR_*` doldurup `docker compose up -d bridge`.
+
+Bir izlenen alana giriş tetikle (gerçek kişi veya test stream). Bridge log:
 
 ```bash
-docker exec ainvr-bridge python -m bridge.dahua test-alarm
+docker compose logs -f bridge | grep dahua
+# Başarılı:   dahua.alarm_sent     zone=... channel=...
+# Erişilemez: dahua.alarm_pending  (retry worker tekrar dener)
 ```
 
-DSS/SmartPSS'te "External Alarm" beklemeli.
+Başarılı tetiklemede DSS/SmartPSS panelinde **"External Alarm"** belirir (mobil push DMSS açıksa). NVR'ın `alarm.cgi` virtual input desteği için: Setup → Event → Alarm → Local Alarm. Yöntem/uyumluluk: [`docs/05-dahua-integration.md`](05-dahua-integration.md#http-alarm-gönderme).
+
+> Gerçek NVR yoksa `DAHUA_ALARM_ENABLED=false` bırak — olaylar yine Postgres'e + Grafana'ya yazılır, sadece NVR push atlanır.
 
 ## Adım 8: PoC olarak çalıştır
 
@@ -225,7 +264,8 @@ DSS/SmartPSS'te "External Alarm" beklemeli.
 - Sadece 2–3 pilot kamera açık tutun
 - `docs/04-zone-rules.md`'ye göre zone tanımlarını kalibre edin
 - Yanlış pozitifleri Frigate `min_score` ve `threshold` ile düzeltin
-- Haiku maliyetini Grafana'dan günlük takip edin
+- Frigate Zone Editor ile polygon'ları gerçek alana göre daraltın
+- Ollama tır analizinin gecikme/başarı oranını **AI NVR — Genel Bakış** dashboard'undan takip edin
 
 ## Sorun Giderme
 
