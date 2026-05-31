@@ -120,6 +120,7 @@ TRUCK_PROMPT_SYSTEM = """Sen bir araç görüntü analiz asistanısın. Sana end
 - "bilinmeyen" rengi SADECE araç gölgede/bulanık olup renk gerçekten seçilemiyorsa kullan.
   Rengi görebiliyorsan "bilinmeyen" DEME — en yakın rengi seç ve "guven"i ona göre ayarla.
 - "guven": tahminin netliği (0.0-1.0). Renk nettse yüksek, belirsizse düşük.
+- "notlar": KISA tut, en fazla 1 kısa cümle (uzun metin çıktıyı bozar).
 - Renk listesi: beyaz, siyah, gri, kirmizi, mavi, yesil, sari, turuncu, kahverengi, mor, pembe, lacivert, krem, bordo, metalik, bilinmeyen
 
 Şema:
