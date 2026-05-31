@@ -1,23 +1,62 @@
 {
   "uid": "ainvr-overview",
   "title": "AI NVR — Genel Bakış",
-  "tags": ["ainvr"],
+  "tags": [
+    "ainvr"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "refresh": "30s",
-  "time": { "from": "now-7d", "to": "now" },
-  "templating": { "list": [] },
-  "annotations": { "list": [] },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
   "panels": [
     {
       "id": 1,
       "type": "stat",
       "title": "İlk Giriş (24s)",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }] } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -30,10 +69,33 @@
       "id": 2,
       "type": "stat",
       "title": "Kamyon Olayı (toplam)",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
-      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -46,10 +108,49 @@
       "id": 3,
       "type": "stat",
       "title": "LLM Başarı Oranı (%)",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
-      "fieldConfig": { "defaults": { "unit": "percent", "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 80 }, { "color": "green", "value": 95 }] } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
+            ]
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -62,10 +163,44 @@
       "id": 4,
       "type": "stat",
       "title": "Dahua Alarm — Bekleyen",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
-      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -78,9 +213,27 @@
       "id": 5,
       "type": "timeseries",
       "title": "Alan Başına İlk Giriş (saatlik)",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
-      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60, "stacking": { "mode": "normal" } } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -93,9 +246,23 @@
       "id": 6,
       "type": "piechart",
       "title": "Kamyon Çekici Rengi Dağılımı",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
-      "options": { "legend": { "showLegend": true, "placement": "right" }, "pieType": "donut" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "options": {
+        "legend": {
+          "showLegend": true,
+          "placement": "right"
+        },
+        "pieType": "donut"
+      },
       "targets": [
         {
           "refId": "A",
@@ -108,9 +275,26 @@
       "id": 7,
       "type": "timeseries",
       "title": "LLM Gecikme (ms, ortalama saatlik)",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
-      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2 } } },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2
+          }
+        }
+      },
       "targets": [
         {
           "refId": "A",
@@ -123,9 +307,19 @@
       "id": 8,
       "type": "table",
       "title": "Son Zone Olayları",
-      "datasource": { "type": "postgres", "uid": "ainvr-postgres" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
-      "options": { "showHeader": true },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ainvr-postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "options": {
+        "showHeader": true
+      },
       "targets": [
         {
           "refId": "A",

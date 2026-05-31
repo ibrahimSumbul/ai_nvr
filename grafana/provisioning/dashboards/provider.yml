@@ -6,9 +6,11 @@ providers:
     orgId: 1
     folder: AI NVR
     type: file
-    disableDeletion: false
+    # GitOps: dashboard git'ten yönetilir. UI edit/silme kapalı (datasource
+    # editable:false ile tutarlı) — UI değişiklikleri restart'ta kaybolmasın.
+    disableDeletion: true
     updateIntervalSeconds: 30
-    allowUiUpdates: true
+    allowUiUpdates: false
     options:
       path: /var/lib/grafana/dashboards
       foldersFromFilesStructure: false
