@@ -7,7 +7,7 @@ Kısa karar kaydı: hangi teknoloji seçildi, neden, ve hangileri elendi.
 | Aday | Sonuç | Neden |
 |---|---|---|
 | **Frigate** | ✅ Seçildi | Coral USB native, ONVIF + RTSP olgun, zone polygon + tracking + MQTT, aktif community |
-| MotionEye | ❌ Elendi | Sadece motion detection, AI yok → her motion'da Haiku spam olur |
+| MotionEye | ❌ Elendi | Sadece motion detection, AI yok → her motion'da LLM spam olur (lokalde throughput'u boğar) |
 | DeepStack | ❌ Elendi | Olgunluk düşük, Coral desteği sınırlı, dokümantasyon zayıf |
 | Shinobi | ❌ Elendi | Eski mimari, Coral entegrasyonu yok, geliştirme yavaş |
 | BlueIris | ❌ Elendi | Windows-only, commercial lisans, container değil |
@@ -22,27 +22,35 @@ Detay → [`docs/10-why-frigate.md`](10-why-frigate.md)
 
 | Aday | Sonuç | Neden |
 |---|---|---|
-| **Python (asyncio)** | ✅ Seçildi | Anthropic/Pydantic/asyncpg/paho-mqtt olgun, hızlı yazılır, test ekosistemi güçlü |
+| **Python (asyncio)** | ✅ Seçildi | Pydantic/asyncpg/aiomqtt/httpx olgun, vision/ML ekosistemi güçlü, hızlı yazılır, test ekosistemi sağlam (Anthropic SDK de gelecekteki bulut hibrit için hazır) |
 | Node.js | ❌ Elendi | I/O için iyi ama görüntü işleme libs zayıf, Pydantic gibi validation yok |
-| Go | ❌ Elendi | Hızlı ama Anthropic SDK resmi yok, MQTT libs daha az olgun, kapsam küçük olduğu için fayda yok |
+| Go | ❌ Elendi | Hızlı ama Pydantic-eşi validation + vision/ML + LLM client ekosistemi zayıf, MQTT libs daha az olgun, kapsam küçük olduğu için fayda yok |
 | Rust | ❌ Elendi | Performans gerekmiyor, yazma süresi 3–5× uzar |
 | Java/Kotlin | ❌ Elendi | RAM ayak izi büyük, JVM overhead 8 GB tampona ek yük |
 | C# / .NET | ❌ Elendi | Cross-platform tamam ama Python kadar AI/ML ekosistemi yok |
 
 Karar kriterleri: **hızlı yazma + AI/ML ekosistem + üretim kalitesi**. Python üçünü de veriyor.
 
-## 3. LLM Sağlayıcı → **Claude Haiku 4.5**
+## 3. LLM Sağlayıcı → **Lokal Ollama (`qwen2.5vl`)** _(M3'te Haiku'dan geçildi)_
 
-| Aday | $/M token (in/out) | Sonuç | Neden |
+**Karar geçmişi**: M0'da bulut **Claude Haiku 4.5** seçilmişti (vizyon + JSON + prompt caching). **M3'te lokal Ollama'ya geçildi** — gerekçe: gizlilik (görüntüler tesisten çıkmaz), **$0 marjinal maliyet**, kotasız/offline çalışma. Karşılığı CPU'da daha yüksek gecikme (~30 sn vs ~1.5 sn), ki olay-tetikli renk kaydı için kabul edilebilir.
+
+| Aday | Tip | Sonuç | Neden |
 |---|---|---|---|
-| **Claude Haiku 4.5** | 0.80 / 4.00 | ✅ Seçildi | Vizyon güçlü, JSON çıktı güvenilir, prompt caching desteği, Anthropic SDK |
-| Gemini 2.5 Flash | 0.30 / 2.50 | ❌ Şimdilik | ~3× ucuz ama: Google ekosistem bağımlılığı, SDK olgunluk Anthropic'in altında |
-| GPT-4o-mini | 0.15 / 0.60 | ❌ Şimdilik | En ucuz ama: vendor neutrality için ayrı bir karar olur, JSON mode güvenirliği test edilmedi |
-| Sonnet 4.6 | 3.00 / 15.00 | ❌ Elendi | 4× pahalı, gerek yok — sorularımız Haiku için yeterince basit |
-| GPT-4 | 30 / 60 | ❌ Elendi | Saçma pahalı |
-| Lokal Qwen2.5-VL 7B | $0 (donanım var) | 🟡 Gelecek | Offline çalışma için ileride, ekstra GPU lazım |
+| **Ollama `qwen2.5vl:7b`** | Lokal | ✅ **Seçildi (M3)** | $0 marjinal, gizli, kotasız, `format=json` structured output; ~5.6 GB model |
+| Claude Haiku 4.5 | Bulut (0.80/4.00 /M) | 🟡 Planlı hibrit | M0'ın eski seçimi; gizlilik + $0 için lokale bırakıldı. `LLM_PROVIDER=anthropic` switch hazır ama **implementasyon henüz yok** |
+| Gemini 2.5 Flash | Bulut (0.30/2.50) | ❌ Şimdilik | Bulut hibrit gerekirse aday; lokal $0 varken gerek yok |
+| GPT-4o-mini | Bulut (0.15/0.60) | ❌ Şimdilik | Aynı — bulut hibrit alternatifi |
+| Lokal `qwen2.5vl:3b` | Lokal | 🟡 Alternatif | Daha hızlı/küçük (~3 GB), düşük-RAM host için; kalite biraz düşer |
+| Lokal `qwen2.5vl:32b` | Lokal | 🟡 Gelecek | Daha kaliteli; GPU + bol RAM gerektirir |
 
-**Geri dönüş noktası**: Eğer aylık $25 bütçeyi 6 ay üst üste aşarsak → Gemini Flash veya GPT-4o-mini'ye geçiş ciddi değerlendirilir. Bridge'de `bridge/llm.py` provider-agnostic interface ile yazılır (M3).
+**Neden lokal kazandı (M3 karar kaydı)**:
+- **Gizlilik**: endüstriyel CCTV görüntüsü hassas veridir; bulut LLM'de her snapshot dış servise giderdi. Lokalde tesisten çıkmaz (KVKK/GDPR avantajı).
+- **Maliyet**: çağrı başına $0, aylık fatura yok, bütçe guard gereksiz. Bkz. [`07-cost-analysis.md`](07-cost-analysis.md).
+- **Bağımsızlık**: API kota/rate-limit yok, internet kesintisinde de çalışır.
+- **Takas**: CPU gecikmesi ~30 sn (480px snapshot). Alarm yolu Frigate'te olduğundan bu zenginleştirme adımı için sorun değil. Bkz. [`10-why-frigate.md`](10-why-frigate.md).
+
+**Provider-agnostic mimari**: [`bridge/bridge/llm.py`](../bridge/bridge/llm.py)'de `LLMClient` Protocol + `build_llm_client` factory. Şu an yalnızca `OllamaClient` uygulanmıştır; `LLM_PROVIDER=anthropic` için switch hazır ama `AnthropicClient` henüz yok (factory `ValueError` yükseltir). Bulut hibrit gerekirse (daha düşük gecikme / daha yüksek kalite) drop-in eklenecek — bu yüzden `.env`'de `ANTHROPIC_*` değişkenleri korunur.
 
 ## 4. Otomasyon Katmanı → **Custom Python servisi** (n8n değil)
 
@@ -103,7 +111,7 @@ Bu seçimlerin hepsi şu sıralamayı izledi:
 2. **Düşük kaynak tüketimi** — 8 GB tampon içinde rahatça çalışmalı
 3. **Production-grade davranış** — health check, restart policy, log, backup
 4. **Test edilebilirlik** — CI'da koşturulabilir
-5. **Maliyet** — açık kaynak veya $25 bütçe içinde
+5. **Maliyet** — açık kaynak veya $0 marjinal (lokal LLM); tek seferlik donanım dışında aylık ücret yok
 6. **Genişlemeye uygun** — gelecekte modül eklenebilir (yüz tanıma, davranış, vb.)
 
 n8n, BlueIris, ticari analitik ürünleri 3., 4. ve 5. kriterlerde kayıp veriyor. Bu projedeki seçimler bu altı kriterin **kesişimi**dir.

@@ -1,117 +1,85 @@
 # 07 — Maliyet Analizi
 
-## Özet — Sabit Bütçeler
+> ✅ **M3'ten itibaren LLM lokal.** Semantik analiz (tır/dorse renk) host'taki Ollama'da koşar — **aylık marjinal LLM maliyeti $0**, görüntüler tesisten çıkmaz. Eski "aylık $10–25 Haiku bütçesi" anlatısı geçersiz. Strateji: [`docs/06-llm-strategy.md`](06-llm-strategy.md).
 
-| Faz | Donanım (tek seferlik) | Haiku bütçe (aylık) | Toplam aylık |
-|---|---|---|---|
-| **PoC** | $0 (mevcut 8 GB sunucu) | **$10** | ~$11 (elektrik dahil) |
-| **Production** | $60 (1× Coral USB) | **$25** | ~$28 (elektrik dahil) |
+## Özet — Maliyet Tablosu
 
-Bu sayılar **hedef tavanlar**. Bridge'de bütçe guard:
-- PoC: $8'de uyarı, $10'da Haiku disable
-- Production: $20'de uyarı, $25'te Haiku disable
+| Faz | Donanım (tek seferlik) | LLM (aylık) | Elektrik (marjinal) | Toplam aylık |
+|---|---|---|---|---|
+| **PoC** | $0 (mevcut sunucu, CPU detection) | **$0** (lokal Ollama) | ~$2–3 | **~$2–3** |
+| **Production** | ~$60 (1× Coral USB) | **$0** (lokal Ollama) | ~$3 | **~$3** |
 
-NVR'a yük binmez (direct kamera bağlantısı zorunlu). Sunucu elektrik ek yük marjinal (~$1–3/ay).
+Lokal LLM marjinal maliyeti **$0** (sadece elektrik). Çağrı başına ücret, aylık fatura, kota **yoktur**. Coral USB tek seferlik bir detection hızlandırıcıdır (LLM değil). NVR'a yük binmez (direct kamera bağlantısı zorunlu).
+
+> **Değer önerisi**: gizlilik (görüntüler tesisten çıkmaz) + **sıfır marjinal maliyet** + kotasız/offline çalışma. Karşılığında bulut LLM'in ~1–2 sn gecikmesi yerine CPU'da ~30 sn (olay-tetikli, alarm yolu değil — kabul edilebilir).
 
 ## Kıyaslama: Üç Yaklaşım
 
 | Yaklaşım | İlk yatırım | Aylık | 1 yıl | 3 yıl |
 |---|---|---|---|---|
-| Saf bulut LLM (1 fps, 100 kamera) | $0 | $2.592.000 | $31 M | $93 M |
-| Frigate + GPU (saf lokal) | $1.500 | ~$40 | $1.980 | $2.940 |
-| **Bu proje — PoC** | **$0** | **~$10** | **~$120** | – |
-| **Bu proje — Production** | **$60** | **~$25** | **~$360** | **~$660** |
+| Saf bulut LLM (1 fps, 100 kamera) | $0 | ~$2.592.000 | ~$31 M | ~$93 M |
+| Frigate + GPU (saf lokal, beefy rig) | ~$1.500 | ~$40 (elektrik) | ~$1.980 | ~$2.940 |
+| **Bu proje — PoC** | **$0** | **~$3** (elektrik) | **~$36** | – |
+| **Bu proje — Production** | **$60** | **~$3** (elektrik) | **~$96** | **~$168** |
 
-> Bu proje en pahalı yaklaşımın **1/100.000**'i, en ucuz lokal alternatifin **1/5**'i.
+> Bu proje, "saf bulut LLM" stroman'ının **~1/850.000**'i, ayrı bir GPU rig'in (~$40/ay) **~1/13**'ü kadar işletim maliyetine sahip. Coral USB tek seferlik; ondan sonra **aylık fatura yok**.
 
-## LLM Maliyeti Detay
+Saf bulut LLM neden bu kadar pahalı/uygulanamaz (sadece maliyet değil; tracking + gecikme): [`docs/10-why-frigate.md`](10-why-frigate.md).
 
-### Per-çağrı
+## LLM Maliyeti: Neden $0?
+
+Lokal Ollama'da her çağrı `llm_usage` tablosuna **`cost_usd = 0.0`** olarak loglanır — donanım zaten alınmış, internet/API ücreti yok, marjinal yük sadece elektrik (çıkarım anındaki birkaç saniyelik CPU/GPU tüketimi).
+
+| Kalem | Lokal Ollama | Bulut LLM (kıyas) |
+|---|---|---|
+| Çağrı başına ücret | **$0** | ~$0,001 |
+| Aylık LLM faturası | **$0** | olay hacmine göre $1–$25+ |
+| Kota / rate limit | yok | API tier limiti |
+| Veri tesisten çıkar mı | **hayır** | evet (her snapshot) |
+
+**Gerçek "maliyet" lokalde paradan değil, throughput'tan gelir**: `qwen2.5vl:7b` CPU'da ~30 sn/çağrı. Olay-tetikli (tır) kullanımda bu rahat; sürekli motion→LLM denenmez. Detay: [`docs/02-hardware.md`](02-hardware.md#darboğaz-2-lokal-llm-throughput).
+
+### Opsiyonel bulut hibrit (planlı — henüz yok)
+
+Daha düşük gecikme veya daha yüksek kalite gerekirse, gelecekte `LLM_PROVIDER=anthropic` ile bulut hibrit eklenebilir (switch altyapısı hazır, implementasyon yok). Yalnızca **o zaman** çağrı-başı ücret ve `LLM_MONTHLY_BUDGET_USD` bütçe guard'ı devreye girer. Referans birim maliyet (Haiku 4.5, opt-in edilirse):
 
 | Bileşen | Token | $/M | Maliyet |
 |---|---|---|---|
-| Sistem prompt (cached, %10 maliyet) | 400 | 0,80 | $0,000032 |
-| Görüntü 640×480 | ~400 | 0,80 | $0,000320 |
-| User msg | 50 | 0,80 | $0,000040 |
-| Output JSON | 200 | 4,00 | $0,000800 |
-| **Per çağrı toplam** | | | **~$0,0012** |
+| Sistem prompt (cached) | 400 | 0,80 | ~$0,00003 |
+| Görüntü (480px) | ~400 | 0,80 | ~$0,00032 |
+| Output JSON | ~200 | 4,00 | ~$0,0008 |
+| **Per çağrı (~)** | | | **~$0,0012** |
 
-### PoC Bütçe Tahsisi ($10/ay)
-
-Pilot 2–3 kamera. Sadece doğrulama amaçlı.
-
-| Olay tipi | Adet/gün | Çağrı/ay | Aylık $ |
-|---|---|---|---|
-| Tır+dorse renk (pilot kamyon, 5/gün) | 5 | 150 | $0,18 |
-| Pilot kapı geçişi enrichment | 50 | 1.500 | $1,80 |
-| Anomali / debug | – | 200 | $0,24 |
-| Pilot Grup C motion (1 kamera test) | 30 | 900 | $1,08 |
-| Manuel test sırasında | – | 500 | $0,60 |
-| **Alt toplam** | | **~3.250** | **~$3,90** |
-| **Bütçe headroom** | | | **$6,10** |
-
-PoC bütçesi rahat sığar; testler ve kalibrasyon sırasında ekstra çağrılara da yer var.
-
-### Production Bütçe Tahsisi ($25/ay)
-
-**Grup A+B (15 kamera Coral'da)** — Haiku sadece zenginleştirme:
-
-| Olay tipi | Adet/gün | Çağrı/ay | Aylık $ |
-|---|---|---|---|
-| Tır+dorse renk | 20 | 600 | $0,72 |
-| Anomali doğrulama | 10 | 300 | $0,36 |
-| Yetkisiz alan (M8+) | 5 | 150 | $0,18 |
-| Kapı geçişi enrichment | 150 | 4.500 | $5,40 |
-| **Alt toplam (A+B)** | | **5.550** | **~$6,66** |
-
-**Kalan bütçe**: $25 − $6,66 = **$18,34** — bu Grup C'ye gider.
-
-**Grup C (motion-triggered Haiku)** — kamera sayısı bütçeyle kalibre edilir:
-
-| Motion/kamera/gün (varsayım) | Kamera × motion × 30 = çağrı | Aylık $ | Kamera sayısı |
-|---|---|---|---|
-| 15 (sakin) | 10 × 15 × 30 = 4.500 | $5,40 | **istediğin kadar** |
-| 30 (orta) | 10 × 30 × 30 = 9.000 | $10,80 | **10 rahat** |
-| 30 (orta) | 12 × 30 × 30 = 10.800 | $12,96 | **12 sınırda** |
-| 50 (yoğun) | 10 × 50 × 30 = 15.000 | $18,00 | **10'dur** |
-
-> **Hedef**: 10–12 Grup C kamerası, $25 bütçeye sığar. Motion yoğunluğu ölçüldükçe kalibre edilir.
-
-| **Genel Toplam (Production)** | | **~15.000–16.500** | **~$18–25** |
-
-Güvenli pay: bütçe **$25/ay** sınır (.env'de `LLM_MONTHLY_BUDGET_USD=25`), alarm **$20**'de.
-
-### Grup C Otomatik Kalibrasyon
-
-Bridge her gün motion-event/kamera istatistiği üretir. Eğer:
-- Bir kamera × motion/gün >50 → o kamera için Haiku tetikleme **active_hours**'a sıkılaştırılır (örn. mesai dışı)
-- Motion threshold +%20 yükseltilir (gürültüden geliyor olabilir)
-- 2 hafta sonra hâlâ yüksekse → Grup D'ye düşürme önerisi log atılır
+> Bu tablo yalnızca **planlı opsiyonel hibrit** içindir. Varsayılan kurulumda LLM maliyeti **$0**'dır.
 
 ## Donanım Maliyeti
 
 ### PoC (sıfır ek yatırım)
 
-- Mevcut Ubuntu sunucu (12 GB RAM, SnipeIT ile paylaşımlı)
+- Mevcut Ubuntu sunucu (CPU detection)
 - Mevcut kameralar ve NVR
 - Mevcut network
+- Lokal Ollama: ücretsiz yazılım, model indirme ~5.6 GB disk
 - **Toplam: $0**
+
+> RAM uyarısı: lokal Ollama co-located çalışacaksa çıkarım anında ~6 GB host RAM tepe gerekir. 12 GB sunucuda full stack ile çakışmaması için 16 GB+ RAM veya ayrı inference host'u önerilir (tek seferlik). Bkz. [`docs/02-hardware.md`](02-hardware.md#lokal-llm-ollama-için-kaynak).
 
 ### Production Upgrade
 
-- **1× Coral USB Accelerator (kesin tavan)**: ~₺2.500–3.500 (≈ $60)
-- Disk: mevcut yerde ~25 GB lazım, ayrı disk gerekmez
+- **1× Coral USB Accelerator**: ~₺2.500–3.500 (≈ $60) — Frigate **detection**'ını hızlandırır
+- Disk: model + snapshot + DB ~30 GB; mevcut diskte yer varsa ayrı disk gerekmez
 - (Opsiyonel) UPS: zaten sunucuda var varsayımıyla
 
-> Ek Coral alınmaz. Daha fazla kamera AI'a sokulacaksa **maliyet Haiku tarafında doğrusal** artar; donanım maliyeti sabit kalır.
+> Coral, LLM'i değil detection'ı hızlandırır. LLM marjinal maliyeti $0 kalır; daha fazla kamera AI'a alınsa bile **LLM tarafında maliyet artmaz** — sınır detection donanımı (Coral/CPU/RAM).
 
-### Gelecek (12 ay sonra büyürse)
+### Gelecek (büyürse — hepsi tek seferlik)
 
-| Ekleme | Tahmini maliyet |
-|---|---|
-| Yüz tanıma (CompreFace + RTX 3060 12GB) | $300 |
-| Davranış analizi (VideoMAE, RTX 4060 Ti) | $500 |
-| 2. AI sunucu (yüksek kullanılabilirlik) | $800 |
+| Ekleme | Tahmini maliyet | Not |
+|---|---|---|
+| Lokal LLM hızı/hacmi (GPU) | $300–500 | Ollama'yı saniyeler-altına indirir; aylık ücret yok |
+| Yüz tanıma (CompreFace + RTX 3060 12GB) | $300 | |
+| Davranış analizi (VideoMAE, RTX 4060 Ti) | $500 | |
+| 2. AI sunucu (yüksek kullanılabilirlik) | $800 | |
 
 ## Elektrik Tüketimi
 
@@ -120,40 +88,44 @@ Bridge her gün motion-event/kamera istatistiği üretir. Eğer:
 | Sunucu idle | 40 | 720 | 29 | ₺87 | ~$3 |
 | + Frigate yükü (CPU) | 80 | 720 | 58 | ₺174 | ~$6 |
 | + Coral USB | +5 | 720 | 62 | ₺186 | ~$6,2 |
+| + Ollama çıkarım (olay anı, kısa süreli) | tepe +60 | seyrek | marjinal | marjinal | ~$0 ek |
 
-Asıl yük zaten SnipeIT için ödeniyor, AI tarafının marjinal etkisi: ~$2–3/ay.
+Asıl yük zaten mevcut servisler için ödeniyor; AI tarafının marjinal etkisi **~$2–3/ay**. Ollama çıkarımı olay-tetikli ve kısa (günde birkaç × ~30 sn) olduğundan elektrik etkisi ihmal edilebilir. GPU eklenirse idle GPU tüketimi (~10–30 W) eklenir.
 
 ## ROI ve Karar
 
 Sistem ne işe yarıyor (ekonomik değer)?
 
 1. **İş güvenliği**: yetkisiz personel/araç girişi → potansiyel hırsızlık/sabotaj önleme
-2. **Operasyonel görünürlük**: tır giriş çıkışı log → sevkıyat doğrulama
+2. **Operasyonel görünürlük**: tır giriş çıkışı + renk/tip log → sevkıyat doğrulama
 3. **Sorumluluk** (liability): alan ihlali kayıtları → sigorta/yasal koruma
-4. **Yöneticiyi gece arayan telefonu azalt**: spam alarm yerine anlamlı alarm
+4. **Gizlilik**: görüntüler tesisten çıkmaz — KVKK/GDPR açısından bulut LLM'e göre belirgin avantaj
+5. **Yöneticiyi gece arayan telefonu azalt**: spam alarm yerine anlamlı alarm
 
-**Geri ödeme**: Sistem 1 ciddi olayı (örn. 1 hırsızlık girişimi) yakalarsa kendini katlayarak öder.
+**Geri ödeme**: Tek seferlik ~$60 donanım + $0 aylık LLM. Sistem 1 ciddi olayı (örn. 1 hırsızlık girişimi) yakalarsa kendini fazlasıyla öder.
 
-## Riskler ve Bütçe Aşımı Senaryoları
+## Riskler
 
-| Senaryo | Maliyet etkisi | Önlem |
+Bulut bütçe-aşımı riski **ortadan kalktı** (LLM $0). Kalan riskler maliyet değil, **kapasite/kalite** tarafında:
+
+| Senaryo | Etki | Önlem |
 |---|---|---|
-| Grup C kamerası "yağmurda titreşen yaprak" → her dk motion | Aylık +$10–40 | Motion threshold yükselt, gece-only mode |
-| Kamera saatte 50 yanlış-pozitif "truck" | Aylık +$40 | Frigate `min_score` 0.7+, zone'lar dar |
-| Anthropic fiyatları %50 arttı | Aylık $18 → $27 | Bütçe artır veya Grup C küçült |
-| 15 alan → 30 alan büyüme | Aylık $18 → $35 | Hâlâ ucuz, donanım yok |
-| API rate limit yendi | Hizmet kesintisi | Queue + retry + bütçe guard |
-| Spam motion → SMTP rate hit | Mail kesintisi | Per-zone 30 mail/saat limit (bkz. `09-notifications.md`) |
+| CPU'da LLM gecikmesi yüksek (~30 sn+) | Renk kaydı gecikir (alarm değil) | Snapshot 480px (yapıldı), GPU host, daha küçük model |
+| Çok sayıda eşzamanlı tır → inference kuyruğu | Bazı kayıtlar gecikir | GPU host veya planlı bulut hibrit |
+| Ollama host RAM yetersiz (co-located) | OOM / swap | 16 GB+ RAM veya ayrı inference host |
+| Yağmurda titreşen yaprak → motion spam | CPU detection yükü (LLM değil) | Frigate `min_score`, zone'ları daralt |
+| Yanlış-pozitif "truck" → gereksiz LLM | Boşa inference (para değil, zaman) | `LLM_TRUCK_MIN_SCORE` 0.6+, zone dar |
+| Spam motion → SMTP rate hit (M6.5) | Mail kesintisi | Per-zone mail limit (bkz. `09-notifications.md`) |
 
 ## Karşılaştırma Tablosu (Ek)
 
 Türk pazarındaki ticari alternatifler (yaklaşık, 2026):
 
-| Çözüm | Yıllık maliyet | Esneklik |
-|---|---|---|
-| Hikvision DeepInView analitik | ₺50.000–120.000 lisans | Düşük |
-| Avigilon ACC + AI | ₺200.000+ donanım+lisans | Orta |
-| Bosch Intelligent Video Analytics | ₺150.000+ | Düşük |
-| **Bu proje** | **~₺3.500 (tek seferlik) + ~₺2.000/yıl** | **Yüksek (açık)** |
+| Çözüm | Yıllık maliyet | Esneklik | Gizlilik |
+|---|---|---|---|
+| Hikvision DeepInView analitik | ₺50.000–120.000 lisans | Düşük | Cihaz-içi |
+| Avigilon ACC + AI | ₺200.000+ donanım+lisans | Orta | Cihaz-içi |
+| Bosch Intelligent Video Analytics | ₺150.000+ | Düşük | Cihaz-içi |
+| **Bu proje** | **~₺3.500 (tek seferlik) + ~₺2.000/yıl elektrik** | **Yüksek (açık)** | **Lokal — görüntü dışarı çıkmaz** |
 
-10–30× ucuz, üstüne istenirse özelleştirilebilir.
+10–30× ucuz, üstüne açık ve özelleştirilebilir; lokal Ollama ile görüntüler tesiste kalır.

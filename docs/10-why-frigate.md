@@ -1,54 +1,61 @@
-# 10 — Neden Frigate? Saf Haiku ile Olmaz mı?
+# 10 — Neden Frigate? Saf LLM ile Olmaz mı?
 
-Sık sorulan ve son derece haklı bir soru. Bu doküman teknik gerekçeleri kayıt altına alır.
+Sık sorulan ve son derece haklı bir soru. Bu doküman teknik gerekçeleri kayıt altına alır. (Soru ister bulut LLM ister lokal LLM için sorulsun — cevap aynı.)
 
 ## Kısa Cevap
 
-**Olmaz.** Saf Haiku ile:
-- Maliyet patlar (sürekli analiz: $2.5M/ay)
-- Gecikme alarmı kaçırır (1–2 sn LLM çağrısı, olay 0.5 sn'de biter)
-- Tracking yapılamaz (LLM stateless) → "boş alana ilk giriş" ve "kapı geçişi" kuralları kurulamaz
+**Olmaz.** Saf LLM ile (bulut **veya** lokal):
+- **Maliyet/throughput patlar**: bulutta sürekli analiz ~$2.5M/ay; lokalde para $0 ama CPU'da ~30 sn/çağrı → her frame'i analiz etmek **fiziksel olarak** imkânsız
+- **Gecikme alarmı kaçırır**: bulut LLM 1–2 sn, lokal LLM CPU'da ~30 sn; olay 0.5 sn'de biter
+- **Tracking yapılamaz** (LLM stateless) → "boş alana ilk giriş" ve "kapı geçişi" kuralları kurulamaz
 
-Frigate **lokal, anlık, ücretsiz tracking + detection** sağlar. Haiku **semantik anlam** katmanını ekler. İkisi birbirini tamamlar.
+Frigate **lokal, anlık (~10 ms), ücretsiz tracking + detection** sağlar. LLM (bu projede **lokal Ollama `qwen2.5vl`**) **semantik anlam** katmanını ekler. İkisi birbirini tamamlar — bu yüzden **hibrit**.
 
-## Saf Haiku'nun 5 Teknik Limiti
+> **Lokale geçince argüman zayıflamaz, güçlenir**: M3'te bulut Haiku yerine lokal Ollama'ya geçtik. Bu maliyet itirazını sıfırladı ($0), ama gecikme itirazını **artırdı** (CPU'da ~30 sn ≫ bulut ~1.5 sn). Yani "her şeyi LLM'e sor" lokalde daha da imkânsız — Frigate'in detection/tracking katmanı hâlâ zorunlu.
 
-### 1. Maliyet
+## Saf LLM'in 5 Teknik Limiti
 
-| Senaryo | Aylık |
+### 1. Maliyet (bulut) / Throughput (lokal)
+
+**Bulut LLM** ile sürekli analizin maliyeti:
+
+| Senaryo | Aylık (bulut) |
 |---|---|
-| 25 kamera × 1 fps Haiku | **~$648.000** |
+| 25 kamera × 1 fps | **~$648.000** |
 | 25 kamera × 1 frame/dk | **~$11.000** |
 | 25 kamera × 1 frame/5dk | **~$2.200** |
 | 25 kamera motion-triggered (100 motion/cam/gün) | **~$90** |
 
-Saf Haiku ile **anlamlı bir izleme** için ~$2k+ gerek. Sub-second tepki için $648k. Sürdürülemez.
+Bulutta **anlamlı bir izleme** için ~$2k+, sub-second tepki için $648k gerek → sürdürülemez.
+
+**Lokal LLM** (bu projede Ollama) bu faturayı **$0** yapar — ama parayı **throughput'a** çevirir: `qwen2.5vl:7b` CPU'da ~30 sn/çağrı → sürekli ~2 çağrı/dk. 25 kamerayı 1 fps analiz etmek ~1.500 çağrı/sn ister; lokal CPU bunun **binlerce katı** gerisinde. Yani sürekli LLM ne bulutta (para) ne lokalde (throughput) mümkün → **olay-tetikli + Frigate ön-filtre** her iki durumda da zorunlu.
 
 ### 2. Gecikme (Latency)
 
-| Adım | Süre |
-|---|---|
-| Snapshot al | ~50 ms |
-| Base64 encode + HTTP | ~100 ms |
-| Anthropic kuyruk + inference | **800–1500 ms** |
-| JSON parse + DB yaz | ~50 ms |
-| **Toplam** | **~1–2 saniye** |
+| Adım | Bulut LLM | Lokal LLM (CPU) |
+|---|---|---|
+| Snapshot al + encode + HTTP | ~150 ms | ~150 ms |
+| Inference | **800–1.500 ms** | **~30.000 ms** |
+| JSON parse + DB yaz | ~50 ms | ~50 ms |
+| **Toplam** | **~1–2 saniye** | **~30 saniye** |
 
-Bir kişi kapıdan **0.5 saniyede** geçer. Saf Haiku ile gerçek zamanlı tepki imkansız.
+Bir kişi kapıdan **0.5 saniyede** geçer. Saf LLM ile gerçek zamanlı tepki imkânsız — lokalde bulutta olduğundan **kat kat** daha imkânsız.
 
-Frigate inference süresi: **10 ms** (Coral) / 100 ms (CPU). 10× ile 100× daha hızlı.
+Frigate inference süresi: **~10 ms** (Coral) / ~100 ms (CPU). LLM'den 10×–3000× hızlı. Bu yüzden alarm/tracking yolu Frigate'te; LLM yalnızca **olay sonrası zenginleştirme** (renk kaydı gibi, gerçek-zaman gerektirmeyen) için.
 
-### 3. Rate Limit
+### 3. Rate Limit (bulut) / Inference kapasitesi (lokal)
 
-Anthropic API tier'a göre dakikalık çağrı sınırı:
+**Bulut LLM** — API tier'a göre dakikalık çağrı sınırı:
 
 | Tier | Req/dk | 25 kamera × 5 fps gereksinimi |
 |---|---|---|
-| Default | 50 | **125 req/sn = 7500/dk → 150× aşım** |
-| Tier 2 | 1000 | **7.5× aşım** |
+| Default | 50 | **125 req/sn = 7.500/dk → 150× aşım** |
+| Tier 2 | 1.000 | **7.5× aşım** |
 | Enterprise | ? | Yine de pahalı |
 
 Throttling devreye girince frame'ler düşer → olay kaçırılır.
+
+**Lokal LLM** — API limiti yok, ama **donanım throughput'u** sert bir tavan: CPU'da ~2 çağrı/dk. Aynı 7.500/dk gereksinimi lokalde **~3.750× aşım**. Sonuç değişmez: Frigate ön-filtre olay sayısını saniyedeki binlerden günde birkaça indirir.
 
 ### 4. State / Tracking Yapamama (En Kritik)
 
@@ -70,35 +77,35 @@ Bu noktada zaten saf LLM'den çıkmış olursunuz; bir tracking algoritması yaz
 
 ### 5. Hassasiyet
 
-| Soru | Frigate (YOLOv8) | Saf Haiku |
+| Soru | Frigate (YOLOv8) | Saf LLM |
 |---|---|---|
 | Kaç kişi var? | Sayısal kesin | Tahmini |
 | Pixel bbox? | Var (kutuyla) | Yok |
 | Hangi zone içinde? | Polygon kontrol | Yorum bağımlı |
 | Confidence skor? | 0.0–1.0 numeric | Sözel |
 
-Zone polygon'una "girdi mi" sorusunu Haiku'ya sormak garanti değil. Frigate matematik olarak çözer.
+Zone polygon'una "girdi mi" sorusunu LLM'e (bulut ya da lokal) sormak garanti değil. Frigate matematik olarak çözer.
 
-## Frigate'in Yapamadığı, Haiku'nun Yaptığı
+## Frigate'in Yapamadığı, Lokal LLM'in Yaptığı
 
-Buraya kadar Frigate'in üstünlüğü. Şimdi Haiku'nun yaptığı:
+Buraya kadar Frigate'in üstünlüğü. Şimdi lokal LLM'in (Ollama `qwen2.5vl`) yaptığı:
 
-| İş | Frigate | Haiku |
+| İş | Frigate | Lokal LLM (Ollama) |
 |---|---|---|
-| **Tır çekici rengi** | ❌ "truck" tek obje | ✅ "kırmızı çekici, beyaz dorse" |
-| **Dorse tipi** (tenteli/frigo/konteyner) | ❌ | ✅ semantik anlama |
-| **"Bu kişi düşmüş mü?"** | ❌ | ✅ |
-| **"Kavga var mı?"** | ❌ (pose model ekleyebiliriz ama zor) | ✅ |
+| **Tır çekici rengi** | ❌ "truck" tek obje | ✅ "kırmızı çekici, beyaz dorse" (M3 — aktif) |
+| **Dorse tipi** (tenteli/frigo/konteyner) | ❌ | ✅ semantik anlama (M3 — aktif) |
+| **"Bu kişi düşmüş mü?"** | ❌ | ✅ (M8 planlı) |
+| **"Kavga var mı?"** | ❌ (pose model ekleyebiliriz ama zor) | ✅ (M8 planlı) |
 | **"Bu cisim çanta mı, çöp mü, paket mi?"** | ❌ sadece "bag" | ✅ |
-| **Anomali tarifi** | ❌ | ✅ |
+| **Anomali tarifi** | ❌ | ✅ (M8 planlı) |
 
-Bu yüzden **hibrit**: Frigate "ne var, kaç tane, nerede"; Haiku "ne anlama geliyor".
+Bu yüzden **hibrit**: Frigate "ne var, kaç tane, nerede"; lokal LLM "ne anlama geliyor" — hepsi tesiste, marjinal maliyet $0.
 
 ## Frigate Yerine Başka Lokal Çözüm?
 
 | Alternatif | Sorun |
 |---|---|
-| MotionEye | AI yok, sadece motion → Haiku spam |
+| MotionEye | AI yok, sadece motion → her harekette LLM spam (lokalde throughput'u boğar) |
 | DeepStack | Daha az olgun, Coral desteği sınırlı |
 | MediaMTX + custom Python YOLO | Aynı işi yapar, daha fazla bakım |
 | Shinobi | Eski, az destek |
@@ -119,20 +126,22 @@ Frigate seçimi: **olgun + Coral desteği + zone polygon + tracking + MQTT + Hom
               │                         │
               ▼                         ▼
         ┌──────────┐              ┌──────────┐
-        │ FRIGATE  │              │  HAIKU   │
-        │ - lokal  │              │ - bulut  │
-        │ - 10 ms  │              │ - 1.5 sn │
-        │ - $0     │              │ - $0.001 │
+        │ FRIGATE  │              │  OLLAMA  │
+        │ - lokal  │              │ - lokal  │
+        │ - 10 ms  │              │ - ~30 sn │
+        │ - $0     │              │ - $0     │
         └──────────┘              └──────────┘
 ```
+
+> Lokal LLM bulut Haiku'dan yavaştır (~30 sn vs ~1.5 sn) ama **$0 + gizli** (görüntü tesisten çıkmaz). Gerçek-zaman gerektirmeyen zenginleştirme için bu takas kabul edildi (M3). Daha hızlı gerekirse GPU host veya planlı bulut hibrit.
 
 ## Sonuç
 
 Frigate **olmazsa olmaz** değil — istisnası **çok düşük olay frekansı** olan setup:
 
-- Eğer 100 kamerada toplam günde 50 olay varsa, saf Haiku $5/ay yapar. Ama:
-  - Tracking yok → "ilk giriş" ve "geçiş" kuralları kurulamaz
-  - Reaksiyon 2 sn → kapı kaçırılır
-  - Bu sınırlamaları kabul edebilirseniz, evet, saf Haiku mümkün
+- Lokal Ollama maliyeti zaten $0 olduğundan "düşük hacimde saf LLM ucuz" argümanı artık geçersiz — para hiç konu değil. Geriye yalnızca iki itiraz kalıyor:
+  - **Tracking yok** (LLM stateless) → "ilk giriş" ve "geçiş" kuralları kurulamaz
+  - **Reaksiyon yavaş** (lokalde ~30 sn, bulutta ~1.5 sn) → kapı/anlık olay kaçırılır
+  - Bu sınırlamaları kabul edebilirseniz, evet, saf LLM mümkün — ama tipik güvenlik kural seti kabul edemez
 
-Sizin kural setinizde (tracking + ms-hassasiyet + state machine) **Frigate gerekli**.
+Sizin kural setinizde (tracking + ms-hassasiyet + state machine) **Frigate gerekli**. Lokal Ollama bunun üstüne, **gerçek-zaman gerektirmeyen** semantik zenginleştirmeyi $0 maliyetle ve tesiste tutarak ekler.
