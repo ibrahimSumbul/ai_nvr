@@ -1,0 +1,16 @@
+# Dashboard provider — /var/lib/grafana/dashboards altındaki JSON'ları yükler (M5).
+apiVersion: 1
+
+providers:
+  - name: AINVR
+    orgId: 1
+    folder: AI NVR
+    type: file
+    # GitOps: dashboard git'ten yönetilir. UI edit/silme kapalı (datasource
+    # editable:false ile tutarlı) — UI değişiklikleri restart'ta kaybolmasın.
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

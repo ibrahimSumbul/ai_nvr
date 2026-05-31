@@ -7,6 +7,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M5 — Grafana Dashboard (kısmi)**
+- `grafana/provisioning/datasources/postgres.yml` — AINVR Postgres datasource (otomatik, `$VAR` expansion ile credentials)
+- `grafana/provisioning/dashboards/provider.yml` — dosya tabanlı dashboard provider
+- `grafana/dashboards/ainvr-overview.json` — "AI NVR — Genel Bakış" dashboard: ilk giriş (24s) / kamyon / LLM başarı / Dahua bekleyen stat'ları, alan başına ilk giriş (saatlik bar), kamyon çekici rengi (donut), LLM gecikme (timeseries), son zone olayları (table)
+- `docker-compose.yml` — grafana servisine provisioning + dashboards mount (RO) + Postgres env (datasource expansion)
+- Doğrulama: datasource health `Database Connection OK`, dashboard provisioned, panel SQL'leri canlı veriyle çalışıyor
+
 **M4 — Dahua Alarm Köprüsü**
 - `bridge/dahua.py` — `DahuaClient` (Virtual Input CGI `/cgi-bin/alarm.cgi` + httpx DigestAuth):
   - `trigger_external_alarm(channel, event_type, description)` — inline retry + exponential backoff (2s/4s/8s)
