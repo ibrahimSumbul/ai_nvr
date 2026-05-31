@@ -1,5 +1,9 @@
 # 09 — Bildirim ve İzleme Linkleri
 
+> ⚠️ **KAPSAM DIŞI (karar 2026-05-31).** Bildirim **DMSS mobil push** ile yapılıyor (M4 external alarm → NVR push kuralı → DMSS app). Güvenlik operasyonu zaten DMSS kullandığı için ayrı SMTP/viewer altyapısı eklenmedi. DMSS push kurulumu: [`docs/05-dahua-integration.md`](05-dahua-integration.md#dmss-mobil-push-bildirimi). Bu doküman, ileride bağımsız bir bildirim kanalı (e-posta/imzalı link) istenirse **referans tasarım** olarak korunmaktadır.
+
+---
+
 Kapı geçişi ve kritik oda olaylarında **e-posta** gönderilir. E-posta içinde:
 
 - Tetikleyen kamera, alan, zaman damgası
