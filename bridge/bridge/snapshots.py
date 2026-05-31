@@ -31,16 +31,23 @@ class SnapshotStore:
             timeout=httpx.Timeout(timeout),
         )
 
-    async def fetch_event_snapshot(self, event_id: str) -> Path | None:
+    async def fetch_event_snapshot(
+        self, event_id: str, height: int | None = None
+    ) -> Path | None:
         """Frigate event ID için snapshot'ı indir, diske yaz, path döndür.
 
         Frigate `/api/events/<event_id>/snapshot.jpg` endpoint'ine erişir.
+        `height` verilirse Frigate server-side resize uygular (`?height=N`) —
+        LLM'e gönderilecek snapshot'ı küçültüp inference latency'sini sınırlar.
         Hata varsa None döner; bridge çağıran tarafta None'a göre davranır.
         """
         path = self._make_path(event_id)
         path.parent.mkdir(parents=True, exist_ok=True)
+        url = f"/api/events/{event_id}/snapshot.jpg"
+        if height is not None:
+            url += f"?height={height}"
         try:
-            response = await self._client.get(f"/api/events/{event_id}/snapshot.jpg")
+            response = await self._client.get(url)
             response.raise_for_status()
         except httpx.HTTPError as exc:
             log.warning(
