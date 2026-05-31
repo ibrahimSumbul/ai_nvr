@@ -151,21 +151,19 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 6.5: Kapı Olayları + E-posta Bildirim
+## Milestone 6.5: Kapı Olayları (DMSS push ile bildirim)
 
-**Hedef**: Kapılarda saniye hassasiyetinde giriş/çıkış log + e-posta linki.
+**Hedef**: Kapılarda saniye hassasiyetinde giriş/çıkış log. Bildirim **DMSS mobil push** ile (M4 external alarm mekanizması) — ayrı e-posta/viewer altyapısı **kapsam dışı** (bkz. karar kaydı 2026-05-31).
 
-- [ ] `bridge/door.py` — kapı state machine (entry_ts, exit_ts, direction)
-- [ ] DB tablosu `door_events`
-- [ ] `bridge/mailer.py` — SMTP entegrasyonu (Gmail App Password)
-- [ ] HTML e-posta şablonu (snapshot inline)
-- [ ] View token üretimi (HMAC, 7 gün TTL)
-- [ ] `viewer/` FastAPI servisi (`/v/{event_id}?t={token}`)
-- [ ] Snapshot clip (5 sn) opsiyonel kayıt
-- [ ] Reverse proxy (Nginx + Let's Encrypt) konfigürasyon dokümanı
-- [ ] SMTP rate limit + retry
+- [ ] `bridge/door.py` — kapı state machine (entry_ts, exit_ts, direction, ms hassasiyet)
+- [ ] DB tablosu `door_events` (şema M1'de hazır)
+- [ ] Kapı geçişi → Dahua external alarm (M4 `DahuaClient`) → DMSS push
+- [ ] `cam_kapi` zone'unu `type: door`'a al + traversal mantığı
+- [ ] Dedup/cooldown (her geçişte tek olay, `cooldown_seconds`)
 
-**Doğrulama**: Bir kapı kameraya bir kişi geçer → 30 sn içinde e-posta gelir, linke tıklanır, snapshot ve klip oynatılır.
+**Doğrulama**: Bir kapı kameradan kişi geçer → `door_events`'e ms hassasiyetli giriş/çıkış + (NVR push kuruluysa) DMSS bildirimi.
+
+> **Kapsam dışı** (kullanıcı kararı 2026-05-31): SMTP e-posta, `viewer/` FastAPI, HMAC izleme linki, reverse proxy. Mevcut güvenlik operasyonu zaten DMSS kullandığı için ayrı bildirim kanalı gereksiz. İlgili `docs/09-notifications.md` referans/opsiyonel olarak kalır.
 
 ---
 
@@ -211,3 +209,5 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 | 2026-05-25 | **Bütçe sabitlendi: PoC $10/ay, Production $25/ay** | İki fazlı kesin tavan. Grup C kamera sayısı bu bütçeye göre kalibre edilir. |
 | 2026-05-25 | n8n reddedildi | Stateless workflow → state machine için round-trip; node başına 100–300 ms gecikme; 500 MB RAM ek yük; CI/test zor. Gelecekte secondary bildirim dağıtımında değerlendirilir. |
 | 2026-05-25 | Python + asyncio seçildi (Node/Go/Rust elendi) | Anthropic/Pydantic/asyncpg olgun, ML ekosistem güçlü, hızlı yazma. Bkz. `docs/11-tech-decisions.md`. |
+| 2026-05-31 | **LLM: Haiku → lokal Ollama** (M3) | Aylık $0 (electric), görüntüler tesisten çıkmaz (gizlilik), kota/rate-limit yok. `LLM_PROVIDER` switch ile Anthropic hibrit ileride opsiyonel. Önceki "Haiku bütçe" kararları geçersiz. |
+| 2026-05-31 | **E-posta/viewer kapsam dışı — DMSS push yeterli** | Güvenlik operasyonu zaten DMSS mobil app kullanıyor. M4 external alarm → NVR push kuralı → DMSS bildirimi. Ayrı SMTP/viewer/HMAC altyapısı gereksiz karmaşıklık. |

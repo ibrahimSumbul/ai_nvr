@@ -25,7 +25,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
 | M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅; 10 kamera + perf testi production |
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
-| M6.5 — Kapı olayları + e-posta | ⬜ | Door state machine + SMTP + viewer |
+| M6.5 — Kapı olayları (DMSS push) | ⬜ | Door state machine + DMSS mobil bildirim |
 | M7 — Operasyonel olgunluk | ⬜ | Backup, alerting, runbook |
 
 Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
@@ -39,7 +39,7 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 5. **Kamyon girişinde lokal Ollama** ile **çekici ve dorse rengini** + dorse tipini ayrı kaydeder (`qwen2.5vl`). Plaka okumaz. Her çağrının gecikme/başarı kaydı `llm_usage`'a yazılır.
 6. **Olayları Dahua NVR'a external alarm** olarak geri besler — orijinal DSS/SmartPSS panelinde görünür (mobil push dahil). Erişilemezse retry kuyruğu.
 7. **Grafana dashboard** — alan başına giriş, kamyon renk dağılımı, LLM gecikme/başarı, bekleyen alarm.
-8. **Kapı olayları + e-posta** (M6.5 planlı) — saniye hassasiyetinde giriş/çıkış + imzalı izleme linki.
+8. **Kapı olayları** (M6.5 planlı) — saniye hassasiyetinde giriş/çıkış logu; bildirim **DMSS mobil push** ile (NVR external alarm üzerinden, ayrı e-posta altyapısı yok).
 
 ## Mimari Özet
 
@@ -130,11 +130,11 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/02-hardware.md`](docs/02-hardware.md) | Donanım gereksinimleri, Coral yükseltme |
 | [`docs/03-setup.md`](docs/03-setup.md) | Adım adım kurulum, sorun giderme |
 | [`docs/04-zone-rules.md`](docs/04-zone-rules.md) | Zone kuralları, state machine, ilk-giriş tetikleyici |
-| [`docs/05-dahua-integration.md`](docs/05-dahua-integration.md) | Dahua RTSP, external alarm (CGI/ONVIF/DSS), digest auth |
+| [`docs/05-dahua-integration.md`](docs/05-dahua-integration.md) | Dahua RTSP, external alarm (CGI/ONVIF/DSS), digest auth, **DMSS push** |
 | [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md) | LLM stratejisi, tır/dorse renk promptu |
 | [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md) | Maliyet analizi, kıyaslamalar |
 | [`docs/08-operations.md`](docs/08-operations.md) | İşletim, izleme, yedekleme |
-| [`docs/09-notifications.md`](docs/09-notifications.md) | E-posta bildirimi + imzalı izleme linki (M6.5) |
+| [`docs/09-notifications.md`](docs/09-notifications.md) | _(kapsam dışı)_ E-posta/viewer alternatifi — referans |
 | [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf LLM ile yapılamaz mı? |
 | [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
