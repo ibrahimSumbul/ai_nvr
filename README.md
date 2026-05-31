@@ -118,7 +118,7 @@ Adım adım kurulum + sorun giderme: [`docs/03-setup.md`](docs/03-setup.md).
 | **Aylık LLM** | **$0** | Ollama lokal — görüntüler tesisten çıkmaz |
 | Donanım (PoC) | $0 | Mevcut sunucu (CPU detection) |
 | Donanım (Production) | ~$60 (bir kere) | 1× Coral USB — detection hızlanır |
-| Opsiyonel bulut hibrit | kullanım bazlı | `LLM_PROVIDER=anthropic` (gizlilik/maliyet trade-off) |
+| Bulut hibrit (planlı) | — | `LLM_PROVIDER` switch altyapısı hazır; Anthropic implementasyonu henüz yok (şu an yalnızca `ollama`) |
 
 Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut gecikme/kota): [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md), [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md).
 

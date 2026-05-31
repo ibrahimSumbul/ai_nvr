@@ -9,7 +9,7 @@
 - Sunucu en az 8 GB boş RAM
 - Dahua kameraların RTSP URL'leri ve şifresi (veya dev için MediaMTX test stream)
 - **[Ollama](https://ollama.com)** — lokal LLM (tır renk analizi). Host'ta çalışır, container ona `host.docker.internal:11434` üzerinden erişir.
-- _(Opsiyonel)_ Anthropic API key — yalnızca bulut hibrit (`LLM_PROVIDER=anthropic`) kullanılacaksa
+- _(Planlı)_ Anthropic bulut hibrit — `LLM_PROVIDER` switch altyapısı hazır ama implementasyon henüz yok; şu an yalnızca `ollama` destekleniyor
 
 ## Adım 1: Docker kurulumu (zaten varsa atla)
 
@@ -39,12 +39,11 @@ nano .env
 Doldurulacak alanlar:
 
 ```ini
-# LLM — lokal Ollama (varsayılan, $0)
+# LLM — lokal Ollama (şu an tek desteklenen provider, $0)
 LLM_PROVIDER=ollama
 LLM_OLLAMA_URL=http://host.docker.internal:11434
 LLM_OLLAMA_MODEL=qwen2.5vl:7b
-# (Opsiyonel) bulut hibrit:
-# ANTHROPIC_API_KEY=sk-ant-xxx
+# Bulut hibrit planlı (henüz yok): ANTHROPIC_API_KEY=sk-ant-xxx
 
 # Postgres
 POSTGRES_USER=ainvr
