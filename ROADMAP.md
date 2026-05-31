@@ -124,17 +124,17 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 5: 10 Alan + Çoklu Kamera
+## Milestone 5: 10 Alan + Çoklu Kamera 🚧
 
 **Hedef**: Production kapsamı, 10 izlenen alan, hepsinde state machine.
 
-- [ ] Frigate config: 10 kamera tanımı
-- [ ] Per-zone konfigürasyon (her alanın kendi kuralı)
-- [ ] Performans test: CPU yükü, RAM kullanımı, gecikme
+- [~] Frigate config: çoklu kamera (dev'de 5 MediaMTX stream aktif; production'da 10 gerçek Dahua kamera)
+- [x] Per-zone konfigürasyon (her alanın kendi kuralı — `zones.yaml` ZoneRules, M2'den beri; M4'te `dahua_channel` eklendi)
+- [ ] Performans test: CPU yükü, RAM kullanımı, gecikme (24s koşum)
 - [ ] **Coral USB değerlendirme** — CPU yetmiyorsa hemen sipariş tetiklenir
-- [ ] Grafana dashboard: alan başına olay sayısı, LLM çağrı/maliyet
+- [x] **Grafana dashboard**: provisioning (datasource + dashboard JSON), alan başına ilk giriş, kamyon renk dağılımı, LLM gecikme/başarı, Dahua alarm durumu
 
-**Doğrulama**: 24 saat sürekli koşum, kaçırılan olay <%5, RAM stabil.
+**Doğrulama**: 24 saat sürekli koşum, kaçırılan olay <%5, RAM stabil. (Grafana dashboard ✅ — datasource health OK, paneller canlı veriyle render.)
 
 ---
 
