@@ -90,6 +90,22 @@ async def test_trigger_all_fail_raises() -> None:
     await client.close()
 
 
+async def test_trigger_timeout_retries_then_raises() -> None:
+    """Transport timeout (status değil) da retry edilir ve DahuaAlarmError'a döner."""
+    state = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        state["n"] += 1
+        raise httpx.ConnectTimeout("NVR yanıt vermedi")
+
+    client = _client_with_handler(_settings(dahua_max_retries=1), handler)
+    with pytest.raises(DahuaAlarmError):
+        await client.trigger_external_alarm(channel=1, event_type="x", description="d")
+
+    assert state["n"] == 2  # 1 ilk + 1 retry
+    await client.close()
+
+
 # ---- health_check ----
 
 
@@ -116,6 +132,13 @@ def test_build_disabled_returns_none() -> None:
 def test_build_enabled_ok() -> None:
     client = build_dahua_client(_settings())
     assert client is not None
+
+
+def test_client_uses_digest_auth() -> None:
+    """Prod client digest auth ile kurulur (Dahua CGI Basic'i reddeder)."""
+    client = build_dahua_client(_settings())
+    assert client is not None
+    assert isinstance(client._client.auth, httpx.DigestAuth)
 
 
 def test_build_enabled_no_host_raises() -> None:

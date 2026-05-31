@@ -139,12 +139,22 @@ class Database:
             return int(row["dahua_alarm_retry_count"]) if row else 0
 
     async def get_pending_dahua_alarms(
-        self, max_retries: int, limit: int = 50
+        self, max_retries: int, older_than_seconds: float, limit: int = 20
     ) -> list[dict[str, Any]]:
         """Gönderilememiş alarm'lar (retry worker için).
 
         Koşul: first_entry + alarm_emitted=true + henüz gönderilmemiş +
-        retry sayısı limiti aşmamış. En eski önce (FIFO).
+        retry sayısı limiti aşmamış + olay `older_than_seconds`'tan eski.
+
+        `older_than_seconds` claim guard'ıdır: `_handle_first_entry` event'i
+        FALSE insert edip inline alarm denemesini *await* ettiği için (worst-case
+        ~timeout×deneme), bu pencere kapanmadan worker AYNI event'i alıp ikinci
+        kez push etmemeli. Worker bu değeri inline worst-case'den büyük verir.
+        Yan fayda: inline tamamlanmadan bridge crash olsa bile event bu süre
+        sonra worker tarafından devralınır (alarm kaybı yok).
+
+        Her worker tick'i bir event için tek `dahua_alarm_retry_count` artışı
+        sayar (içerideki inline retry'lar hariç). En eski önce (FIFO).
         """
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
@@ -156,10 +166,12 @@ class Database:
                   AND dahua_alarm_sent = FALSE
                   AND dahua_alarm_retry_count < $1
                   AND (metadata->>'alarm_emitted')::bool = TRUE
+                  AND ts < (NOW() - make_interval(secs => $2))
                 ORDER BY ts ASC
-                LIMIT $2
+                LIMIT $3
                 """,
                 max_retries,
+                float(older_than_seconds),
                 limit,
             )
             return [dict(r) for r in rows]

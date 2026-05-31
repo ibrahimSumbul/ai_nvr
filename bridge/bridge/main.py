@@ -231,8 +231,14 @@ async def _dahua_retry_loop(
             await asyncio.wait_for(stop_event.wait(), timeout=settings.dahua_retry_interval_s)
             return  # stop_event geldi
         except TimeoutError:
+            # Claim guard: inline alarm penceresinden (timeout×deneme + backoff
+            # buffer) daha eski pending'leri al → inline path ile çift-push
+            # yarışını önler (subagent review blocker fix).
+            claim_delay = settings.dahua_timeout_s * (settings.dahua_max_retries + 1) + 30.0
             try:
-                pending = await db.get_pending_dahua_alarms(settings.dahua_max_retries)
+                pending = await db.get_pending_dahua_alarms(
+                    settings.dahua_max_retries, older_than_seconds=claim_delay
+                )
             except Exception as exc:  # noqa: BLE001
                 log.error("dahua.retry_query_failed", error=str(exc))
                 continue
@@ -254,7 +260,9 @@ async def _dahua_retry_loop(
                         retry_count=retries,
                         error=str(exc),
                     )
-                    continue
+                    # NVR muhtemelen erişilemiyor — batch'i bloklamadan kalanı
+                    # sonraki tick'e bırak (50×worst-case seri bekleme önlenir).
+                    break
                 await db.mark_dahua_alarm_sent(row["id"])
                 log.info("dahua.retry_sent", zone_event_id=row["id"], zone=row["zone"])
 
