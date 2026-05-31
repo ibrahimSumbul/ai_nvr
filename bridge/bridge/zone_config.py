@@ -32,6 +32,10 @@ class ZoneRules(BaseModel):
     active_hours: str = "00:00-23:59"
     alert_on_empty_arrival: bool = True
 
+    # M4 — bu zone'un Dahua NVR'daki external alarm (virtual input) channel'ı.
+    # Gerçek kurulumda her izlenen alan bir NVR channel'ına map edilir.
+    dahua_channel: int = Field(default=1, ge=1, le=256)
+
     # Kapı (door) kuralları — M6.5'te kullanılır
     log_precision: Literal["second", "millisecond"] = "second"
     direction_detection: bool = False

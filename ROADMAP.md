@@ -92,34 +92,35 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 3: LLM Entegrasyonu (Ollama)
+## Milestone 3: LLM Entegrasyonu (Ollama) ✅
 
 **Hedef**: Tır rengi + dorse tipi analizi lokal Ollama vision model ile yapılıyor. Cost: $0 (electric only). Privacy: görüntüler dış servise gitmiyor.
 
-- [ ] `bridge/llm.py` — `OllamaClient` (httpx async), `LLMClient` Protocol provider-agnostic
-- [ ] `TruckAnalysis` Pydantic schema (renk enum, dorse tipi enum, guven)
-- [ ] Ollama `/api/generate` çağrısı `format=json` structured output + retry + timeout
-- [ ] Truck event flow: Frigate "truck" → SnapshotStore → OllamaClient → `truck_events` + `llm_usage` insert
-- [ ] Dedup: aynı `frigate_event_id` için tekrar LLM çağrısı yok
-- [ ] **Hibrit fallback altyapısı** (opsiyonel): `LLM_PROVIDER=anthropic` ile Anthropic SDK kullanılabilir hale gelir (gelecekte INSTALL_LLM=true)
-- [ ] **M3 öncesi prereq**: `frigate/config.yml`'de `reset_admin_password: false` set + admin parolasını güvenli yere kaydet (M2.5'te `true` bırakıldı — her restart yeni rastgele parola log'a basılıyordu)
-- [ ] **M3 öncesi prereq**: Host'ta Ollama kurulu + servis çalışıyor (`brew install ollama && ollama serve`) + vision model indirilmiş (`ollama pull qwen2.5vl:7b` veya benzer)
+- [x] `bridge/llm.py` — `OllamaClient` (httpx async), `LLMClient` Protocol provider-agnostic
+- [x] `TruckAnalysis` Pydantic schema (renk enum, dorse tipi enum, guven)
+- [x] Ollama `/api/generate` çağrısı `format=json` structured output + retry + timeout
+- [x] Truck event flow: Frigate "truck" → SnapshotStore → OllamaClient → `truck_events` + `llm_usage` insert
+- [x] Dedup: aynı `frigate_event_id` için tekrar LLM çağrısı yok
+- [x] **Kalite tuning** (smoke test sonrası): renk prompt fix (bilinmeyen→gerçek renk) + snapshot downscale (480px, latency %73↓)
+- [x] **Hibrit fallback altyapısı**: `LLM_PROVIDER` switch + `build_llm_client` factory (anthropic ileride)
+- [x] **M3 öncesi prereq**: `reset_admin_password: false` + Ollama host + `qwen2.5vl:7b`
 
-**Doğrulama**: 1 kamyon görüntüsü ile manuel test, renk JSON çıkışı doğrulanır. Maliyet logu kontrol.
+**Doğrulama**: ✅ Smoke test — kamyon görüntüsü → `truck_events` + `llm_usage` insert (FK bağlı), renk JSON doğru (siyah/gri), latency ~30s (480px). PR #6, #9.
 
 ---
 
-## Milestone 4: Dahua Alarm Köprüsü
+## Milestone 4: Dahua Alarm Köprüsü ✅ (kod) / ⏳ (gerçek NVR testi)
 
 **Hedef**: Olaylar orijinal Dahua panelinde alarm olarak görünüyor.
 
-- [ ] Dahua HTTP alarm API araştırma + auth
-- [ ] `bridge/dahua.py` — alarm gönderme fonksiyonu
-- [ ] Zone first_entry → Dahua external alarm trigger
-- [ ] Test: bridge'den alarm tetikle, Dahua DSS'te göründüğünü doğrula
-- [ ] Failure handling: Dahua erişilemezse retry queue
+- [x] Dahua HTTP alarm API + digest auth (`docs/05` Yöntem 3: Virtual Input CGI)
+- [x] `bridge/dahua.py` — `DahuaClient.trigger_external_alarm` + `health_check` + retry/backoff
+- [x] Zone first_entry → Dahua external alarm trigger (`zones.py`, `alarm_emitted` flag'i ile)
+- [x] Failure handling: inline retry (exp. backoff) + DB pending + `_dahua_retry_loop` worker
+- [x] `DAHUA_ALARM_ENABLED` switch (dev'de false → push atlanır, olaylar DB'ye yine yazılır)
+- [ ] **Gerçek NVR testi**: bridge'den alarm → Dahua DSS'te görünür doğrulama (production ortamı gerekir; dev'de httpx mock ile path doğrulandı)
 
-**Doğrulama**: Bridge'den alarm tetiklenince Dahua mobile push gelir.
+**Doğrulama**: Kod + unit test (httpx mock: trigger/retry/fail/health). Gerçek mobile push doğrulaması production NVR'da yapılacak (PoC ilk hafta API uyum testi — docs/05).
 
 ---
 
