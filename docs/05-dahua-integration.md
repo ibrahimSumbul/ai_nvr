@@ -217,24 +217,62 @@ class DahuaClient:
         ...
 ```
 
-## Retry ve Queue
+## Retry ve Queue (M4 implementasyonu)
 
-Dahua bazen 5xx döndürür veya zaman aşımına girer. Bridge:
+Dahua bazen 5xx döndürür veya zaman aşımına girer. Bridge (`bridge/dahua.py` + `bridge/main.py`):
 
-- Max 3 deneme, exponential backoff (2s, 4s, 8s)
-- 3'ü de başarısızsa: olay **DB'ye `alarm_pending=true`** olarak kaydedilir
-- Arka plan worker pending alarmları 5 dakikada bir tekrar gönderir
-- 1 saatten eski pending → dead-letter table, manuel inceleme
+- **Inline retry**: `DahuaClient.trigger_external_alarm` her çağrıda `DAHUA_MAX_RETRIES` (default 3) kez dener, exponential backoff (2s/4s/8s).
+- **Pending**: hepsi başarısızsa olay `zone_events.dahua_alarm_sent=false` + `dahua_alarm_retry_count` artırılır (ayrı `alarm_pending` kolonu yok — `db/schema.sql`).
+- **Retry worker** (`_dahua_retry_loop`): `DAHUA_RETRY_INTERVAL_S` (default 300s) periyodunda pending alarmları tekrar dener. **Claim guard** (`ts < now() - worst_case`) inline alarm ile worker'ın aynı olayı çift-push etmesini önler.
+- `dahua_alarm_retry_count >= DAHUA_MAX_RETRIES` → worker artık denemez (dead-letter; manuel inceleme).
 
-## Test Komutu (Milestone 4'te)
+## Test (M4)
+
+`.env`'de `DAHUA_ALARM_ENABLED=true` + `DAHUA_NVR_*` doldur, `docker compose up -d bridge`. Bir izlenen alana giriş tetikle:
 
 ```bash
-docker exec ainvr-bridge python -m bridge.dahua test-alarm \
-  --camera cam_01 \
-  --message "Test alarm from bridge"
+docker compose logs -f bridge | grep dahua
+# Başarılı:   zone.dahua_alarm_sent     zone=... zone_event_id=...
+# Erişilemez: zone.dahua_alarm_pending  retry_count=N
 ```
 
-Beklenen: 5 saniye içinde NVR'ın alarm logunda görülür + (varsa) mobile push.
+Beklenen: NVR'ın alarm logunda "External Alarm" + (push kuralı kuruluysa) DMSS mobil bildirimi.
+
+> Not: `dahua_alarm_enabled=false` (dev default) iken push atlanır, olay yine DB'ye yazılır. Üretimde gerçek NVR ile doğrulanır.
+
+## DMSS Mobil Push Bildirimi
+
+DMSS (Dahua'nın mobil uygulaması — iDMSS/gDMSS) bildirimleri **Dahua P2P bulut servisi** üzerinden gelir. Üçüncü taraf (bizim bridge) **doğrudan DMSS'e push gönderemez**; bunun yerine NVR'a external alarm gönderir (yukarıdaki Yöntem 3), NVR kendi push kuralıyla DMSS'e iletir.
+
+**Yani DMSS push için ek kod gerekmez — M4 external alarm yeterli.** Eksik olan tek şey NVR + app tarafı konfigürasyon:
+
+### 1. NVR'da alarm input'u push'a bağla
+
+NVR Web UI / yerel menü:
+```
+Setup → Event → Alarm → Local Alarm → (bizim tetiklediğimiz channel)
+  • Enable: ✓
+  • Period: 7/24 (veya active_hours'a paralel)
+  • Push Notification / "Send to App": ✓
+```
+(Menü adları firmware sürümüne göre değişir; "Alarm" + "Push" anahtar kelimeleri aranır.)
+
+### 2. DMSS app'te aboneliği aç
+
+```
+DMSS app → Device → (NVR) → Notification / Alarm:
+  • Bildirimleri etkinleştir (üst slider)
+  • Olay tipi: Alarm (External / Local Alarm) ✓
+  • İlgili channel(ler) ✓
+```
+
+Önkoşul: cihaz DMSS'e P2P (SN) veya IP ile eklenmiş, telefon push izni açık olmalı.
+
+### 3. Doğrula
+
+Bridge'den external alarm tetiklendiğinde (yukarıdaki Test adımı) telefonda DMSS push bildirimi düşmeli. Düşmezse kontrol sırası: (a) NVR alarm logunda External Alarm görünüyor mu → görünmüyorsa bridge/NVR bağlantısı; (b) görünüyor ama push yok → NVR push kuralı veya DMSS app aboneliği.
+
+> **Zengin push** (başlık + snapshot + tıklanabilir): saf NVR'ın external alarm push'u sade metindir. Snapshot/başlık/derin-link için **DSS Pro Custom Event API** (Yöntem 4) gerekir — ileride opsiyonel.
 
 ## RTSP Sorunları için Hızlı Tanı
 
