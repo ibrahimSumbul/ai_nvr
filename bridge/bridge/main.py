@@ -20,7 +20,12 @@ from pathlib import Path
 import structlog
 
 from bridge.config import Settings, get_settings
-from bridge.dahua import DahuaAlarmClient, DahuaAlarmError, build_dahua_client
+from bridge.dahua import (
+    DahuaAlarmClient,
+    DahuaAlarmError,
+    build_dahua_client,
+    dahua_inline_worst_case_seconds,
+)
 from bridge.db import Database
 from bridge.events import FrigateEvent
 from bridge.llm import build_llm_client
@@ -231,10 +236,10 @@ async def _dahua_retry_loop(
             await asyncio.wait_for(stop_event.wait(), timeout=settings.dahua_retry_interval_s)
             return  # stop_event geldi
         except TimeoutError:
-            # Claim guard: inline alarm penceresinden (timeout×deneme + backoff
-            # buffer) daha eski pending'leri al → inline path ile çift-push
-            # yarışını önler (subagent review blocker fix).
-            claim_delay = settings.dahua_timeout_s * (settings.dahua_max_retries + 1) + 30.0
+            # Claim guard: inline alarm penceresinden daha eski pending'leri al
+            # → inline path ile çift-push yarışını önler (subagent review blocker).
+            # worst-case backoff exponential olduğu için tam hesaplanır + buffer.
+            claim_delay = dahua_inline_worst_case_seconds(settings) + 30.0
             try:
                 pending = await db.get_pending_dahua_alarms(
                     settings.dahua_max_retries, older_than_seconds=claim_delay

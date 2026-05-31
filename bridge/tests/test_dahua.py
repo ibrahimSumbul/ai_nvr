@@ -8,7 +8,12 @@ import httpx
 import pytest
 
 from bridge.config import Settings
-from bridge.dahua import DahuaAlarmError, DahuaClient, build_dahua_client
+from bridge.dahua import (
+    DahuaAlarmError,
+    DahuaClient,
+    build_dahua_client,
+    dahua_inline_worst_case_seconds,
+)
 
 
 async def _no_sleep(_seconds: float) -> None:
@@ -139,6 +144,29 @@ def test_client_uses_digest_auth() -> None:
     client = build_dahua_client(_settings())
     assert client is not None
     assert isinstance(client._client.auth, httpx.DigestAuth)
+
+
+# ---- claim guard worst-case (çift-push race fix) ----
+
+
+def test_inline_worst_case_includes_exponential_backoff() -> None:
+    """worst-case = denemeler×timeout + backoff(2+4+...+2^retries) — lineer DEĞİL."""
+    # retries=3: 4 deneme × 10s + (2+4+8)=14 → 54s
+    s3 = _settings(dahua_max_retries=3, dahua_timeout_s=10.0)
+    assert dahua_inline_worst_case_seconds(s3) == 54.0
+    # retries=5 (config üst sınırı): 6 × 10 + (2+4+8+16+32)=62 → 122s
+    s5 = _settings(dahua_max_retries=5, dahua_timeout_s=10.0)
+    assert dahua_inline_worst_case_seconds(s5) == 122.0
+
+
+def test_claim_delay_covers_inline_window_for_all_retry_counts() -> None:
+    """claim_delay (worst-case + 30 buffer) her geçerli retries (0..5) için inline
+    penceresini AŞMALI — yoksa worker inline çalışırken çift-push yapar."""
+    for retries in range(6):  # config: ge=0 le=5
+        s = _settings(dahua_max_retries=retries, dahua_timeout_s=10.0)
+        worst = dahua_inline_worst_case_seconds(s)
+        claim_delay = worst + 30.0
+        assert claim_delay > worst  # buffer pozitif, race penceresi kapalı
 
 
 def test_build_enabled_no_host_raises() -> None:

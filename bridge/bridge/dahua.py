@@ -34,6 +34,23 @@ class DahuaAlarmError(Exception):
     """Dahua alarm tüm inline retry'lardan sonra başarısız."""
 
 
+def _backoff_seconds(attempt: int) -> float:
+    """Bir deneme sonrası beklenecek backoff (exponential): 2s, 4s, 8s, ..."""
+    return 2.0 ** (attempt + 1)
+
+
+def dahua_inline_worst_case_seconds(settings: Settings) -> float:
+    """`trigger_external_alarm` tek çağrısının worst-case toplam süresi (s).
+
+    = (deneme sayısı × timeout) + (denemeler arası backoff toplamı).
+    Retry worker'ın claim guard'ı bundan büyük olmalı (çift-push race önlemi);
+    backoff exponential olduğu için lineer yaklaşım yetmez (subagent review).
+    """
+    attempts = settings.dahua_max_retries + 1
+    backoff_total = sum(_backoff_seconds(i) for i in range(settings.dahua_max_retries))
+    return attempts * settings.dahua_timeout_s + backoff_total
+
+
 class DahuaAlarmClient(Protocol):
     """Alarm köprüsü arayüzü — provider-agnostic (virtual_input/onvif/dss)."""
 
@@ -105,8 +122,7 @@ class DahuaClient:
                     error=str(exc),
                 )
                 if attempt < self._s.dahua_max_retries:
-                    # Exponential backoff: 2s, 4s, 8s, ...
-                    await self._sleep(2.0 ** (attempt + 1))
+                    await self._sleep(_backoff_seconds(attempt))
 
         raise DahuaAlarmError(
             f"Dahua alarm {self._s.dahua_max_retries + 1} denemede başarısız "
