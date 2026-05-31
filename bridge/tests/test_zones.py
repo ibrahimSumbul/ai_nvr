@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from bridge.dahua import DahuaAlarmError
 from bridge.events import FrigateEvent
 from bridge.zone_config import ZoneConfig, ZoneRules
 from bridge.zones import ZoneStateMachine
@@ -18,6 +19,8 @@ class FakeDB:
     def __init__(self) -> None:
         self.events: list[dict[str, Any]] = []
         self.last_event: dict[str, Any] | None = None
+        self.dahua_sent: list[int] = []
+        self.dahua_retries: list[int] = []
 
     async def insert_zone_event(self, **kwargs: Any) -> int:  # noqa: D401
         self.events.append(kwargs)
@@ -25,6 +28,13 @@ class FakeDB:
 
     async def get_zone_last_event(self, zone: str) -> dict[str, Any] | None:
         return self.last_event
+
+    async def mark_dahua_alarm_sent(self, zone_event_id: int) -> None:
+        self.dahua_sent.append(zone_event_id)
+
+    async def increment_dahua_retry(self, zone_event_id: int) -> int:
+        self.dahua_retries.append(zone_event_id)
+        return len(self.dahua_retries)
 
 
 class FakeSnapshots:
@@ -36,6 +46,33 @@ class FakeSnapshots:
     async def fetch_event_snapshot(self, event_id: str) -> None:
         self.fetched.append(event_id)
         return None  # mock — path döndürmüyor
+
+
+class FakeDahua:
+    """DahuaAlarmClient Protocol mock'u."""
+
+    def __init__(self, *, raises: Exception | None = None) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self._raises = raises
+
+    async def trigger_external_alarm(
+        self,
+        channel: int,
+        event_type: str,
+        description: str,
+        snapshot_path: str | None = None,
+    ) -> None:
+        self.calls.append(
+            {"channel": channel, "event_type": event_type, "description": description}
+        )
+        if self._raises is not None:
+            raise self._raises
+
+    async def health_check(self) -> bool:
+        return True
+
+    async def close(self) -> None:
+        pass
 
 
 def _zone_cfg(**overrides: Any) -> ZoneConfig:
@@ -356,3 +393,71 @@ async def test_restore_from_db_skips_non_first_entry() -> None:
     await zsm.restore_from_db()
 
     assert zsm.state == "EMPTY"
+
+
+# --- M4: Dahua alarm entegrasyonu ---
+
+
+async def test_dahua_alarm_triggered_on_first_entry() -> None:
+    """alarm_emitted + dahua client → external alarm tetiklenir + sent işaretlenir."""
+    cfg = _zone_cfg(dahua_channel=7)  # default first_entry_alarm + alert_on_empty_arrival
+    db = FakeDB()
+    snaps = FakeSnapshots()
+    dahua = FakeDahua()
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: now, dahua=dahua)  # type: ignore[arg-type]
+
+    await zsm.on_event(_event(event_id="evt-1"))
+
+    assert len(dahua.calls) == 1
+    assert dahua.calls[0]["channel"] == 7  # zone-bazlı channel kullanıldı
+    assert dahua.calls[0]["event_type"] == "zone_first_entry"
+    assert db.dahua_sent == [1]  # zone_event_id=1 sent işaretlendi
+    assert db.dahua_retries == []
+
+
+async def test_dahua_alarm_failure_increments_retry() -> None:
+    """Dahua alarm başarısız → retry sayacı artar, sent işaretlenmez (pending)."""
+    cfg = _zone_cfg()
+    db = FakeDB()
+    snaps = FakeSnapshots()
+    dahua = FakeDahua(raises=DahuaAlarmError("NVR erişilemedi"))
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: now, dahua=dahua)  # type: ignore[arg-type]
+
+    await zsm.on_event(_event(event_id="evt-1"))
+
+    assert len(dahua.calls) == 1
+    assert db.dahua_retries == [1]  # pending olarak retry sayacı arttı
+    assert db.dahua_sent == []  # gönderildi işaretlenmedi
+    assert zsm.state == "OCCUPIED"  # alarm hatası state machine'i bozmaz
+
+
+async def test_dahua_not_triggered_when_alarm_not_emitted() -> None:
+    """first_entry_alarm=False → alarm_emitted=false → dahua çağrılmaz (client olsa bile)."""
+    cfg = _zone_cfg(first_entry_alarm=False)
+    db = FakeDB()
+    snaps = FakeSnapshots()
+    dahua = FakeDahua()
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: now, dahua=dahua)  # type: ignore[arg-type]
+
+    await zsm.on_event(_event(event_id="evt-1"))
+
+    assert dahua.calls == []  # alarm_emitted=false → tetiklenmedi
+    assert len(db.events) == 1  # ama event yine DB'ye yazıldı (log)
+
+
+async def test_dahua_none_client_skips_alarm() -> None:
+    """dahua=None (dev/disabled) → alarm tetikleme atlanır, event DB'ye yazılır."""
+    cfg = _zone_cfg()
+    db = FakeDB()
+    snaps = FakeSnapshots()
+    now = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
+    zsm = ZoneStateMachine(cfg, db, snaps, clock=lambda: now)  # type: ignore[arg-type]
+
+    await zsm.on_event(_event(event_id="evt-1"))
+
+    assert len(db.events) == 1
+    assert db.dahua_sent == []
+    assert db.dahua_retries == []

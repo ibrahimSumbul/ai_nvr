@@ -35,10 +35,23 @@ class Settings(BaseSettings):
     # Frigate (bridge container'ından internal erişim — snapshot fetch için)
     frigate_internal_url: str = Field(default="http://frigate:5000")
 
-    # Dahua
+    # Dahua (M4) — NVR'a external alarm push. docs/05-dahua-integration.md
     dahua_nvr_host: str = Field(default="")
+    dahua_nvr_port: int = Field(default=80, ge=1, le=65535)
     dahua_nvr_user: str = Field(default="admin")
     dahua_nvr_password: str = Field(default="")
+    # Alarm push global switch. Dev'de FALSE (gerçek NVR yok → tetikleme atlanır,
+    # alarm_emitted DB'ye yine yazılır). Production'da .env ile true.
+    dahua_alarm_enabled: bool = Field(default=False)
+    # Alarm yöntemi: şu an 'virtual_input' (CGI alarm.cgi). 'onvif'/'dss_custom' ileride.
+    dahua_alarm_method: str = Field(default="virtual_input")
+    # Virtual input channel — zone bazında override edilmezse bu kullanılır.
+    dahua_alarm_channel: int = Field(default=1, ge=1, le=256)
+    dahua_timeout_s: float = Field(default=10.0, ge=1.0, le=60.0)
+    dahua_max_retries: int = Field(default=3, ge=0, le=5)
+    # Pending alarm retry worker periyodu (saniye). 3 inline deneme başarısızsa
+    # alarm DB'de pending kalır; worker periyodik tekrar dener.
+    dahua_retry_interval_s: float = Field(default=300.0, ge=30.0, le=3600.0)
 
     # LLM (M3+). Default Ollama (lokal). Anthropic fallback ileride eklenir.
     llm_provider: str = Field(default="ollama")  # 'ollama' | 'anthropic' (gelecek)

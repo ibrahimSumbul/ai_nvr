@@ -26,6 +26,7 @@ from typing import Any, Literal
 
 import structlog
 
+from bridge.dahua import DahuaAlarmClient, DahuaAlarmError
 from bridge.db import Database
 from bridge.events import FrigateEvent
 from bridge.snapshots import SnapshotStore
@@ -76,11 +77,13 @@ class ZoneStateMachine:
         db: Database,
         snapshots: SnapshotStore,
         clock: Callable[[], datetime] = _utcnow,
+        dahua: DahuaAlarmClient | None = None,
     ) -> None:
         self._cfg = cfg
         self._db = db
         self._snapshots = snapshots
         self._clock = clock
+        self._dahua = dahua  # None → NVR push devre dışı (dev veya alarm kapalı)
 
         self._state: ZoneState = "EMPTY"
         self._since: datetime | None = None
@@ -193,7 +196,7 @@ class ZoneStateMachine:
             "alarm_emitted": alarm_emitted,
         }
 
-        await self._db.insert_zone_event(
+        zone_event_id = await self._db.insert_zone_event(
             zone=cfg.name,
             camera_id=event.camera,
             event_type="first_entry",
@@ -211,9 +214,37 @@ class ZoneStateMachine:
             alarm_emitted=alarm_emitted,
             active_hour=is_active,
         )
-        # M4'te buraya Dahua alarm tetiklemesi eklenecek:
-        # if alarm_emitted:
-        #     await self._dahua.trigger_external_alarm(event.camera, "person_entered")
+
+        # M4 — Dahua external alarm. Sadece alarm_emitted + client mevcutsa
+        # (client None → dev veya DAHUA_ALARM_ENABLED=false). Başarısızlıkta
+        # event DB'de pending kalır (dahua_alarm_sent=false); retry worker alır.
+        if alarm_emitted and self._dahua is not None:
+            await self._emit_dahua_alarm(zone_event_id, event)
+
+    async def _emit_dahua_alarm(self, zone_event_id: int, event: FrigateEvent) -> None:
+        """first_entry için Dahua external alarm tetikle + sonucu DB'ye işle."""
+        assert self._dahua is not None
+        cfg = self._cfg
+        description = f"{cfg.name}: bos alana ilk giris ({event.label})"
+        try:
+            await self._dahua.trigger_external_alarm(
+                channel=cfg.rules.dahua_channel,
+                event_type="zone_first_entry",
+                description=description,
+            )
+        except DahuaAlarmError as exc:
+            # Inline retry'lar tükendi → pending bırak, worker tekrar dener.
+            retries = await self._db.increment_dahua_retry(zone_event_id)
+            log.warning(
+                "zone.dahua_alarm_pending",
+                zone=cfg.name,
+                zone_event_id=zone_event_id,
+                retry_count=retries,
+                error=str(exc),
+            )
+            return
+        await self._db.mark_dahua_alarm_sent(zone_event_id)
+        log.info("zone.dahua_alarm_sent", zone=cfg.name, zone_event_id=zone_event_id)
 
     async def tick(self, now: datetime | None = None) -> None:
         """Periyodik exit kontrolü. M2'de 10 sn'de bir çağrılır."""
