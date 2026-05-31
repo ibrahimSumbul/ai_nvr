@@ -7,6 +7,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M4 — Dahua Alarm Köprüsü**
+- `bridge/dahua.py` — `DahuaClient` (Virtual Input CGI `/cgi-bin/alarm.cgi` + httpx DigestAuth):
+  - `trigger_external_alarm(channel, event_type, description)` — inline retry + exponential backoff (2s/4s/8s)
+  - `health_check()` — `magicBox.cgi getDeviceType` ile NVR yoklama
+  - `DahuaAlarmClient` Protocol (provider-agnostic — onvif/dss_custom ileride), `DahuaAlarmError`
+  - `build_dahua_client` factory — `DAHUA_ALARM_ENABLED=false` → None (dev'de push atlanır)
+- `bridge/zones.py` — `ZoneStateMachine` Dahua entegrasyonu: `alarm_emitted` + client varsa external alarm tetiklenir; başarısızlıkta event DB'de pending kalır (`dahua_alarm_sent=false` + retry sayacı)
+- `bridge/db.py` — `mark_dahua_alarm_sent`, `increment_dahua_retry`, `get_pending_dahua_alarms` (retry queue)
+- `bridge/main.py` — `_dahua_retry_loop` worker: pending alarm'ları `DAHUA_RETRY_INTERVAL_S` periyodunda tekrar dener
+- `bridge/zone_config.py` — `ZoneRules.dahua_channel` (zone→NVR channel eşlemesi)
+- `bridge/config.py` — Dahua alarm ayarları (enabled, method, port, channel, timeout, max_retries, retry_interval)
+- 13 yeni unit test (test_dahua.py: 9 — trigger/retry/fail/health/build; test_zones.py: 4 — alarm tetik/fail-retry/emitted-değil/none-client)
+
+**M3 — LLM kalite tuning** (smoke test sonrası)
+- Renk prompt fix: model rengi görse de "bilinmeyen" döndürüyordu → enum'a commit (siyah/gri doğru çıkıyor)
+- Snapshot downscale: `llm_snapshot_max_height=480` + Frigate `?height=N` → latency %73↓ (800px 121s → 480px 33s)
+- `num_predict` 512→256, `llm_timeout_s` 60→90
+
 **M3 — LLM Entegrasyonu (Ollama)**
 - `bridge/llm.py` — Provider-agnostic `LLMClient` Protocol + `OllamaClient` implementation:
   - `httpx.AsyncClient` ile `/api/generate` (Ollama vision endpoint)

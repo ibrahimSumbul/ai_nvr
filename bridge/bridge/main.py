@@ -20,6 +20,7 @@ from pathlib import Path
 import structlog
 
 from bridge.config import Settings, get_settings
+from bridge.dahua import DahuaAlarmClient, DahuaAlarmError, build_dahua_client
 from bridge.db import Database
 from bridge.events import FrigateEvent
 from bridge.llm import build_llm_client
@@ -54,9 +55,12 @@ def build_state_machines(
     zones_cfg: ZonesConfig,
     db: Database,
     snapshots: SnapshotStore,
+    dahua: DahuaAlarmClient | None = None,
 ) -> dict[str, ZoneStateMachine]:
     """Her zone için bir ZSM instance — `{zone_name: ZSM}`."""
-    return {z.name: ZoneStateMachine(z, db, snapshots) for z in zones_cfg.zones}
+    return {
+        z.name: ZoneStateMachine(z, db, snapshots, dahua=dahua) for z in zones_cfg.zones
+    }
 
 
 def index_by_camera(zones_cfg: ZonesConfig) -> dict[str, list[ZoneConfig]]:
@@ -73,12 +77,13 @@ async def run(settings: Settings) -> None:
     snapshots = SnapshotStore(frigate_url=settings.frigate_internal_url)
     mqtt = MqttClient(settings)
     llm = build_llm_client(settings)
+    dahua = build_dahua_client(settings)  # None → NVR push devre dışı (dev/disabled)
     truck_handler = build_truck_handler(settings, db, snapshots, llm)
 
     await db.connect()
 
     zones_cfg = load_zones_config(ZONES_PATH)
-    state_machines = build_state_machines(zones_cfg, db, snapshots)
+    state_machines = build_state_machines(zones_cfg, db, snapshots, dahua)
     cameras_to_zones = index_by_camera(zones_cfg)
 
     # State recovery
@@ -109,16 +114,27 @@ async def run(settings: Settings) -> None:
         _listen_loop(mqtt, state_machines, cameras_to_zones, truck_handler, stop_event)
     )
     ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
+    tasks = [listener, ticker]
+
+    # M4 — pending Dahua alarm retry worker (yalnızca alarm aktifse)
+    if dahua is not None:
+        tasks.append(
+            asyncio.create_task(
+                _dahua_retry_loop(dahua, db, zones_cfg, settings, stop_event)
+            )
+        )
 
     try:
         await stop_event.wait()
     finally:
-        listener.cancel()
-        ticker.cancel()
-        for task in (listener, ticker):
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
         await llm.close()
+        if dahua is not None:
+            await dahua.close()
         await snapshots.close()
         await db.close()
         log.info("bridge.shutdown_complete")
@@ -195,6 +211,52 @@ async def _tick_loop(
                     await zsm.tick(now)
                 except Exception as exc:  # noqa: BLE001
                     log.error("zone.tick_failed", zone=zsm.zone_name, error=str(exc))
+
+
+async def _dahua_retry_loop(
+    dahua: DahuaAlarmClient,
+    db: Database,
+    zones_cfg: ZonesConfig,
+    settings: Settings,
+    stop_event: asyncio.Event,
+) -> None:
+    """Pending Dahua alarm'larını periyodik tekrar dener (M4).
+
+    Inline retry'ları tükenmiş (`dahua_alarm_sent=false`, retry<max) first_entry
+    olayları DB'den çekilir, NVR'a tekrar gönderilir. Başarı → işaretlenir;
+    başarısızlık → retry sayacı artar, max'a ulaşınca düşer (dead-letter manuel).
+    """
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=settings.dahua_retry_interval_s)
+            return  # stop_event geldi
+        except TimeoutError:
+            try:
+                pending = await db.get_pending_dahua_alarms(settings.dahua_max_retries)
+            except Exception as exc:  # noqa: BLE001
+                log.error("dahua.retry_query_failed", error=str(exc))
+                continue
+            for row in pending:
+                zcfg = zones_cfg.by_name(row["zone"])
+                channel = zcfg.rules.dahua_channel if zcfg else settings.dahua_alarm_channel
+                try:
+                    await dahua.trigger_external_alarm(
+                        channel=channel,
+                        event_type="zone_first_entry_retry",
+                        description=f"{row['zone']}: pending alarm retry",
+                    )
+                except DahuaAlarmError as exc:
+                    retries = await db.increment_dahua_retry(row["id"])
+                    log.warning(
+                        "dahua.retry_failed",
+                        zone_event_id=row["id"],
+                        zone=row["zone"],
+                        retry_count=retries,
+                        error=str(exc),
+                    )
+                    continue
+                await db.mark_dahua_alarm_sent(row["id"])
+                log.info("dahua.retry_sent", zone_event_id=row["id"], zone=row["zone"])
 
 
 def main() -> None:
