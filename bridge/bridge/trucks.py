@@ -70,10 +70,12 @@ class TruckEventHandler:
     async def _process(self, event: FrigateEvent) -> None:
         self._processed.add(event.event_id)
 
-        # 1. Snapshot fetch
+        # 1. Snapshot fetch (LLM için height-sınırlı — latency kontrolü)
         snapshot_path = None
         if event.after.has_snapshot:
-            saved = await self._snapshots.fetch_event_snapshot(event.event_id)
+            saved = await self._snapshots.fetch_event_snapshot(
+                event.event_id, height=self._settings.llm_snapshot_max_height
+            )
             if saved is not None:
                 snapshot_path = str(saved)
 
