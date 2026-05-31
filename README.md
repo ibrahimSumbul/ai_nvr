@@ -1,139 +1,143 @@
-# AI NVR — Dahua + Frigate + Claude Haiku Hibrit Kamera Analitiği
+# AI NVR — Dahua + Frigate + Ollama Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Faz: M1 tamam](https://img.shields.io/badge/Faz-M1%20tamam-green.svg)](ROADMAP.md)
-[![Stack: Python · Frigate · Postgres · Claude Haiku](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Claude-534AB7.svg)](docs/11-tech-decisions.md)
+[![Faz: M4 tamam · M5 sürüyor](https://img.shields.io/badge/Faz-M4%20tamam%20·%20M5%20sürüyor-green.svg)](ROADMAP.md)
+[![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
+[![Test: 60 unit · ruff · mypy strict](https://img.shields.io/badge/Test-60%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 
-Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, saniye hassasiyetinde kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
+Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
 
-Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal detection Frigate'te koşar (CPU → Coral USB upgrade), semantik analiz (renk, anomali tarifi) Claude Haiku'da koşar; olaylar orijinal DSS/SmartPSS paneline external alarm olarak geri akar.
+Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal nesne tespiti **Frigate**'te koşar (CPU → opsiyonel Coral USB), semantik analiz (tır/dorse rengi) **lokal Ollama vision modeli**nde koşar — **görüntüler tesisten çıkmaz, aylık LLM maliyeti $0**. Olaylar orijinal DSS/SmartPSS paneline **external alarm** olarak geri akar.
 
-> Portföy projesi — mevcut CCTV altyapısı üzerinde hibrit lokal + bulut AI için açık kaynak referans mimari ve dokümantasyon.
+> Portföy projesi — mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI için açık kaynak referans mimari, çalışır kod ve dokümantasyon.
 
 ## Durum
 
-> **M1 tamamlandı.** Stack lokalde çalışıyor (5 servis healthy). M2 sıradaki — tek pilot kamera + zone state machine.
+> **Çekirdek pipeline çalışıyor.** 5 servis healthy; kamera → Frigate tespit → bridge zone state machine → Postgres + Dahua alarm + Ollama tır analizi → Grafana dashboard uçtan uca doğrulandı (lokal Colima + MediaMTX test stream).
 
-| Aşama | Durum |
-|---|---|
-| Mimari kararları | ✅ Tamam |
-| Dokümantasyon (11 doküman) | ✅ Tamam |
-| Docker iskelet (M1) | ✅ Tamam |
-| Tek kamera pilot (M2) | 🚧 Sıradaki |
-| LLM + Dahua alarm + e-posta (M3–M6.5) | ⬜ Bekliyor |
-| Üretim (~25 AI kamera) | ⬜ Bekliyor |
-| Coral USB upgrade | ⬜ Türkiye tedarik bekliyor |
+| Milestone | Durum | Özet |
+|---|---|---|
+| M0 — Mimari & dokümantasyon | ✅ | 11 doküman, kararlar |
+| M1 — Docker stack iskeleti | ✅ | 5 servis, Alembic, CI |
+| M2 — Tek kamera pilot | ✅ | Zone state machine, ilk-giriş alarmı, snapshot |
+| M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
+| M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi, `truck_events` + maliyet log |
+| M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
+| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅; 10 kamera + perf testi production |
+| M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
+| M6.5 — Kapı olayları + e-posta | ⬜ | Door state machine + SMTP + viewer |
+| M7 — Operasyonel olgunluk | ⬜ | Backup, alerting, runbook |
+
+Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 
 ## Ne Yapar?
 
-1. **Dahua NVR kayda devam eder** — bu sistem ona dokunmaz, sadece RTSP sub-stream'leri paralel okur.
-2. **15 kamera Coral USB'de** Frigate ile lokal kişi/araç tespiti (10 oda + 5 kapı).
-3. **Coral'a sığmayan kameralar Haiku ile desteklenir** (motion-triggered snapshot analizi). Donanım bütçesi maksimum $60'da sabit.
-4. **Oda state machine'i**: alan boşken ilk giren kişiyi kaydeder, dolu alanda spam uyarısı vermez. İzleme süresi 1+ dakika.
-5. **Kapı olayları**: her geçişte alarm, **saniye hassasiyetinde** giriş ve çıkış zamanı kaydedilir. E-posta ile **canlı izleme linki** gönderilir.
-6. **Kamyon girişinde** Claude Haiku ile **çekici (tır) ve dorse rengini** ayrı kaydeder. Plaka okumaz.
-7. **Olayları Dahua NVR'a alarm olarak** geri besler — orijinal DSS/SmartPSS panelinde "External Alarm" tipinde görünür.
-8. **Kamera offline tespit** — herhangi bir kamera 60 sn'den fazla frame göndermezse uyarı/e-posta.
-9. **NVR yük izleme** — NVR CPU %70'i geçince uyarı, %80'de Grup C otomatik devre dışı (kayıt güvenliği önce).
-
-## İki Fazlı Plan
-
-| Faz | Donanım | Haiku bütçe | Kamera AI kapsamında |
-|---|---|---|---|
-| **PoC** | Mevcut 8 GB RAM sunucu (Coral yok) | **$10/ay** | 2–3 pilot |
-| **Production** | + 1× Coral USB ($60) | **$25/ay** | ~25 (15 Coral + 10 Haiku) |
-
-**NVR'a yük binmez** — tüm bağlantılar doğrudan kameralara (direct IP). NVR sadece kendi kaydını yapmaya devam eder.
-
-### Production Grup Tahsisi (100 kamera için)
-
-| Grup | Kamera | Mekanizma | Aylık $ |
-|---|---|---|---|
-| **A**: Aktif izlenen alanlar (oda) | 10 | Frigate + Coral | (Coral içinde) |
-| **B**: Kapılar (alarm + log + e-posta) | 5 | Frigate + Coral | (Coral içinde) |
-| **C**: Düşük öncelik (motion) | 10–12 | Motion + Haiku snapshot | ~$11–13 |
-| **D**: Sadece NVR kaydı | 73–75 | NVR kayıt, AI yok | $0 |
-
-Grup C boyutu motion yoğunluğuna ve $25 bütçeye göre kalibre edilir.
-
-## Maliyet Özeti
-
-| | İlk yatırım | Haiku/ay | Toplam aylık |
-|---|---|---|---|
-| **PoC** | $0 | $10 | ~$11 |
-| **Production** | $60 | $25 | ~$28 |
-
-Daha fazla kamera eklenirse → maliyet sadece Haiku tarafında artar (donanım yok).
-
-## Hızlı Başlangıç
-
-> ✅ M1 hazır — stack ayağa kalkıyor, kameralar henüz tanımlı değil (M2'de eklenir).
-
-```bash
-git clone https://github.com/ibrahimSumbul/ai_nvr.git
-cd ai_nvr
-cp .env.example .env
-# .env içine güçlü şifreler ve ANTHROPIC_API_KEY yaz
-docker compose up -d
-make ps         # tüm servisler 'healthy' olmalı
-make logs       # bridge 'Bridge ready, waiting for events' yazar
-```
-
-Geliştirme (yerel `uv` kurulu olmalı):
-
-```bash
-cd bridge
-uv sync                          # bağımlılıkları yükle
-uv run pytest -m "not integration"   # unit testler
-```
-
-Adım adım kurulum: [`docs/03-setup.md`](docs/03-setup.md).
-
-## Dokümantasyon
-
-| Dosya | İçerik |
-|---|---|
-| [`docs/01-architecture.md`](docs/01-architecture.md) | Sistem mimarisi, veri akışı |
-| [`docs/02-hardware.md`](docs/02-hardware.md) | Donanım gereksinimleri, Coral yükseltme yolu |
-| [`docs/03-setup.md`](docs/03-setup.md) | Adım adım kurulum |
-| [`docs/04-zone-rules.md`](docs/04-zone-rules.md) | Alan kuralları, state machine, ilk-giriş tetikleyici |
-| [`docs/05-dahua-integration.md`](docs/05-dahua-integration.md) | Dahua RTSP, HTTP alarm, ONVIF entegrasyonu |
-| [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md) | Claude Haiku promptları, tır/dorse renk analizi |
-| [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md) | Maliyet analizi, kıyaslamalar |
-| [`docs/08-operations.md`](docs/08-operations.md) | İşletim, izleme, yedekleme, sorun giderme |
-| [`docs/09-notifications.md`](docs/09-notifications.md) | E-posta bildirimleri + imzalı izleme linki + viewer servisi |
-| [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf Haiku ile yapılamaz mı? |
-| [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları — Frigate, Python, Haiku, Postgres, n8n vs |
-| [`ROADMAP.md`](ROADMAP.md) | PoC → Production milestone'ları |
+1. **Dahua NVR kayda devam eder** — bu sistem ona dokunmaz, sadece RTSP sub-stream'leri **doğrudan kameralardan** paralel okur (NVR'a yük binmez).
+2. **Frigate lokal tespiti** — kişi/araç/kamyon, CPU detector (opsiyonel Coral USB ile hızlanır).
+3. **Oda state machine** — alan boşken ilk giren kişiyi `first_entry` olarak kaydeder, dolu alanda spam üretmez; `exit_timeout` sonrası `exit`. Mesai saatleri (`active_hours`) ve alarm tetikleme ayrı kararlar.
+4. **Kısıtlı bölge alarmı** — polygon zone'a (örn. sarı çizginin üstü) giriş anında alarm.
+5. **Kamyon girişinde lokal Ollama** ile **çekici ve dorse rengini** + dorse tipini ayrı kaydeder (`qwen2.5vl`). Plaka okumaz. Her çağrının gecikme/başarı kaydı `llm_usage`'a yazılır.
+6. **Olayları Dahua NVR'a external alarm** olarak geri besler — orijinal DSS/SmartPSS panelinde görünür (mobil push dahil). Erişilemezse retry kuyruğu.
+7. **Grafana dashboard** — alan başına giriş, kamyon renk dağılımı, LLM gecikme/başarı, bekleyen alarm.
+8. **Kapı olayları + e-posta** (M6.5 planlı) — saniye hassasiyetinde giriş/çıkış + imzalı izleme linki.
 
 ## Mimari Özet
 
 ```
-  ┌──────────────────────────────────────────────────────────────┐
-  │                  Mevcut Sunucu (12 GB RAM)                   │
-  │                                                              │
-  │   [ Ubuntu 22.04 + SnipeIT ]  ────  ~4 GB                    │
-  │                                                              │
-  │   ┌──────────────  AI Stack  (~6 GB)  ─────────────────┐    │
-  │   │                                                     │    │
-  │   │   Frigate (CPU, sonra Coral USB) ───── 2.5 GB      │    │
-  │   │   PostgreSQL (olay + renk log)  ───── 0.5 GB       │    │
-  │   │   Bridge (zone state + LLM)     ───── 0.3 GB       │    │
-  │   │   Mosquitto (MQTT)              ───── 0.05 GB      │    │
-  │   │   Grafana (dashboard)           ───── 0.3 GB       │    │
-  │   │   Viewer (FastAPI, e-posta linki) ─── 0.2 GB       │    │
-  │   │                                                     │    │
-  │   └─────────────────────────────────────────────────────┘    │
-  └──────────────────────────────────────────────────────────────┘
-              ▲                                ▲
-              │ RTSP sub-stream (direct)       │ HTTP alarm
-              │ kameralardan                   ▼
-       Dahua IP kameralar              Dahua NVR (orijinal kayıt)
-       (15 Coral + 10 Haiku motion     (DSS/SmartPSS panel görür)
-        + 75 sadece NVR kaydı)
+        Dahua IP kameralar                         Dahua NVR (orijinal kayıt)
+        (RTSP sub-stream, direct)                  (DSS/SmartPSS panel görür)
+                 │                                          ▲
+                 │ RTSP                            External │ alarm (HTTP digest)
+                 ▼                                          │
+  ┌──────────────────────────────  AI Stack (Docker)  ─────┴───────────────┐
+  │                                                                         │
+  │   Frigate ──MQTT(events)──▶  Bridge (Python/asyncio)  ──▶  PostgreSQL   │
+  │   (CPU/Coral detect)          • zone state machine         (olay + log) │
+  │                               • truck → Ollama analizi          │       │
+  │   Ollama (host) ◀──HTTP───────• Dahua alarm + retry             │       │
+  │   (qwen2.5vl, lokal)          • snapshot fetch            Grafana ◀──────┤
+  │                                                          (dashboard)    │
+  │   Mosquitto (MQTT broker)                                               │
+  └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Detay için → [`docs/01-architecture.md`](docs/01-architecture.md).
+Detay: [`docs/01-architecture.md`](docs/01-architecture.md).
+
+## Hızlı Başlangıç
+
+**Gereksinimler**: Docker + Docker Compose, [Ollama](https://ollama.com) (lokal LLM için, host'ta çalışır).
+
+```bash
+# 1. Klonla
+git clone https://github.com/ibrahimSumbul/ai_nvr.git
+cd ai_nvr
+
+# 2. Ortam değişkenleri — güçlü şifreler gir
+cp .env.example .env
+#   POSTGRES_PASSWORD, MQTT_PASSWORD, GRAFANA_ADMIN_PASSWORD zorunlu.
+#   Dahua alarm için: DAHUA_ALARM_ENABLED=true + DAHUA_NVR_* (opsiyonel, default kapalı).
+
+# 3. Ollama vision modeli (host'ta)
+ollama pull qwen2.5vl:7b      # ~5.6 GB; .env LLM_OLLAMA_MODEL ile değiştirilebilir
+
+# 4. Stack'i başlat
+docker compose up -d
+
+# 5. Veritabanı şeması (ilk kurulumda zorunlu)
+docker compose run --rm --entrypoint "" bridge alembic upgrade head
+
+# 6. Doğrula
+docker compose ps             # 5 servis 'healthy'
+docker compose logs bridge    # "bridge.ready ... cameras=N zones=N"
+```
+
+| Servis | Adres | Not |
+|---|---|---|
+| Frigate UI | http://localhost:5100 | macOS'te 5000'i AirPlay tutar → 5100 |
+| Grafana | http://localhost:3000 | "AI NVR — Genel Bakış" dashboard otomatik yüklü |
+
+**Kamera ekleme**: [`frigate/config.yml`](frigate/config.yml)'e RTSP girişi + [`bridge/config/zones.yaml`](bridge/config/zones.yaml)'a zone eşlemesi. İkisi de RW bind mount — restart yeter, rebuild gerekmez. Dahua RTSP/zone detayları: [`docs/05-dahua-integration.md`](docs/05-dahua-integration.md), [`docs/04-zone-rules.md`](docs/04-zone-rules.md).
+
+> **Dev'de gerçek kamera yoksa**: [MediaMTX](https://github.com/bluenviron/mediamtx) ile test RTSP stream'leri yayınlanabilir (`rtsp://host.docker.internal:8554/<isim>`).
+
+### Geliştirme
+
+```bash
+cd bridge
+uv sync --group dev                     # bağımlılıklar
+uv run --group dev pytest -m "not integration"   # 60 unit test
+uv run --group dev ruff check . && uv run --group dev mypy bridge
+```
+
+Adım adım kurulum + sorun giderme: [`docs/03-setup.md`](docs/03-setup.md).
+
+## Maliyet
+
+| Kalem | Tutar | Not |
+|---|---|---|
+| **Aylık LLM** | **$0** | Ollama lokal — görüntüler tesisten çıkmaz |
+| Donanım (PoC) | $0 | Mevcut sunucu (CPU detection) |
+| Donanım (Production) | ~$60 (bir kere) | 1× Coral USB — detection hızlanır |
+| Bulut hibrit (planlı) | — | `LLM_PROVIDER` switch altyapısı hazır; Anthropic implementasyonu henüz yok (şu an yalnızca `ollama`) |
+
+Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut gecikme/kota): [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md), [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md).
+
+## Teknoloji & Dokümantasyon
+
+| Dosya | İçerik |
+|---|---|
+| [`docs/01-architecture.md`](docs/01-architecture.md) | Sistem mimarisi, veri akışı |
+| [`docs/02-hardware.md`](docs/02-hardware.md) | Donanım gereksinimleri, Coral yükseltme |
+| [`docs/03-setup.md`](docs/03-setup.md) | Adım adım kurulum, sorun giderme |
+| [`docs/04-zone-rules.md`](docs/04-zone-rules.md) | Zone kuralları, state machine, ilk-giriş tetikleyici |
+| [`docs/05-dahua-integration.md`](docs/05-dahua-integration.md) | Dahua RTSP, external alarm (CGI/ONVIF/DSS), digest auth |
+| [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md) | LLM stratejisi, tır/dorse renk promptu |
+| [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md) | Maliyet analizi, kıyaslamalar |
+| [`docs/08-operations.md`](docs/08-operations.md) | İşletim, izleme, yedekleme |
+| [`docs/09-notifications.md`](docs/09-notifications.md) | E-posta bildirimi + imzalı izleme linki (M6.5) |
+| [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf LLM ile yapılamaz mı? |
+| [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları |
+| [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
 ## Lisans
 
