@@ -10,7 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 **Dokümantasyon — Ollama hizalama + DMSS push**
 - `README.md` + `docs/03-setup.md`: "Claude Haiku/bulut $10-25/ay" → lokal Ollama ($0, gizlilik); badge M1→M4; **çalışır kurulum** (ollama pull + `alembic upgrade head` migrate adımı + servis adresleri)
 - `docs/05-dahua-integration.md`: **DMSS mobil push konfigürasyon rehberi** (NVR external alarm→push kuralı + DMSS app abonelik adımları). Retry/test bölümleri gerçek M4 implementasyonuna hizalandı (`dahua_alarm_sent`/retry worker/claim guard; var olmayan `test-alarm` CLI kaldırıldı)
-- `docs/09-notifications.md`: e-posta/viewer kapsam-dışı banner'ı (referans tasarım olarak korundu)
+- `docs/03-setup.md` + `docs/09-notifications.md`: e-posta/SMTP/viewer kapsam-dışı (DMSS push tercih edildi; referans tasarım olarak korundu)
 - `ROADMAP.md`: M6.5 "Kapı olayları + e-posta" → "Kapı olayları (DMSS push)"; karar kayıtları (Haiku→Ollama, e-posta/viewer kapsam dışı)
 
 **M5 — Grafana Dashboard (kısmi)**

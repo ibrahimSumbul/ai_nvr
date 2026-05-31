@@ -1,6 +1,6 @@
 # 03 — Kurulum
 
-> ✅ **Çekirdek pipeline çalışıyor** (M1–M4). Docker stack + zone state machine + Ollama tır analizi + Dahua alarm + Grafana dashboard aktif. Kapı olayları + e-posta + viewer M6.5'te eklenecek.
+> ✅ **Çekirdek pipeline çalışıyor** (M1–M4). Docker stack + zone state machine + Ollama tır analizi + Dahua alarm + Grafana dashboard aktif. Kapı olayları M6.5'te eklenecek; bildirim **DMSS mobil push** ile (NVR external alarm üzerinden — ayrı e-posta/viewer altyapısı kapsam dışı, bkz. ROADMAP).
 
 ## Önkoşullar
 
@@ -64,22 +64,11 @@ DAHUA_NVR_PASSWORD=<NVR-şifresi>
 # Grafana
 GRAFANA_ADMIN_PASSWORD=<güçlü-şifre>
 
-# Frigate restream (opsiyonel — viewer için)
+# Frigate RTSP şifresi (kameralar için)
 FRIGATE_RTSP_PASSWORD=<frigate-restream-için>
-
-# SMTP (Milestone 6.5 sonrası)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=ainvr@example.com
-SMTP_PASSWORD=<gmail-app-password>
-SMTP_FROM="AI NVR <ainvr@example.com>"
-SMTP_TO_DEFAULT=guvenlik@example.com
-
-# Viewer (Milestone 6.5 sonrası)
-PORTAL_URL=https://ainvr.example.com
-VIEW_TOKEN_SECRET=<32-char-random>
-VIEW_TOKEN_TTL_DAYS=7
 ```
+
+> SMTP / viewer (e-posta + imzalı izleme linki) **kapsam dışı** — bildirim DMSS mobil push ile yapılır (bkz. [`docs/05`](05-dahua-integration.md#dmss-mobil-push-bildirimi)). `.env.example` bu opsiyonel değişkenleri referans olarak içerebilir; aktif kullanılmaz.
 
 ## Adım 4: Kameraları + zone'ları ekle (M2+)
 
