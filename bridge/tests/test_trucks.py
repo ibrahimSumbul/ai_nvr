@@ -34,8 +34,12 @@ class FakeDB:
 class FakeSnapshots:
     def __init__(self, snapshot_returns: Path | None = Path("/tmp/snap.jpg")) -> None:
         self._returns = snapshot_returns
+        self.height_calls: list[int | None] = []
 
-    async def fetch_event_snapshot(self, event_id: str) -> Path | None:
+    async def fetch_event_snapshot(
+        self, event_id: str, height: int | None = None
+    ) -> Path | None:
+        self.height_calls.append(height)
         return self._returns
 
 
@@ -116,6 +120,18 @@ async def test_truck_event_success_path() -> None:
     assert len(db.truck_events) == 1
     assert db.truck_events[0]["cekici_rengi"] == "mavi"
     assert db.truck_events[0]["dorse_rengi"] == "beyaz"
+
+
+async def test_snapshot_fetched_with_height_limit() -> None:
+    """LLM snapshot'ı settings.llm_snapshot_max_height ile çekilir (latency kontrolü)."""
+    settings = _settings()
+    db = FakeDB()
+    snaps = FakeSnapshots()
+    handler = TruckEventHandler(settings, db, snaps, FakeLLM())  # type: ignore[arg-type]
+
+    await handler.on_event(_truck_event(event_id="evt-h"))
+
+    assert snaps.height_calls == [settings.llm_snapshot_max_height]
 
 
 async def test_non_truck_label_ignored() -> None:
