@@ -5,9 +5,10 @@ düşürür. CameraMonitor periyodik olarak stats'ı çeker; `camera_fps>0` ise
 kamerayı canlı (last_seen güncelle), aksi halde son görülmeden bu yana
 `camera_offline_threshold_s` geçtiyse offline işaretler (bir kez uyarır).
 
-Durum `camera_status` tablosunda tutulur (restart-safe). Offline uyarısı şimdilik
-log + DB + Grafana; Dahua/DMSS offline alarmı ileride (kamera→NVR channel
-eşlemesi + kullanıcı kararı gerekir).
+Durum `camera_status` tablosunda tutulur (restart-safe). Offline'da: log + DB +
+Grafana paneli + (dahua client varsa) **Dahua external alarm → DMSS push**
+(`camera_channels` ile kamera→NVR channel eşlemesi). Tek-uyarı; recovery'de flag
+resetlenir, tekrar düşerse yeniden uyarır.
 
 Olay-tabanlı değil HTTP-poll: bir kameradan event gelmemesi "hareket yok"
 demektir (offline değil); `camera_fps` gerçek stream sağlığını gösterir.
@@ -23,6 +24,7 @@ import httpx
 import structlog
 
 from bridge.config import Settings
+from bridge.dahua import DahuaAlarmClient, DahuaAlarmError
 from bridge.db import Database
 
 log = structlog.get_logger(__name__)
@@ -40,11 +42,17 @@ class CameraMonitor:
         settings: Settings,
         db: Database,
         clock: Callable[[], datetime] = _utcnow,
+        dahua: DahuaAlarmClient | None = None,
+        camera_channels: dict[str, int] | None = None,
     ) -> None:
         self._settings = settings
         self._db = db
         self._clock = clock
         self._threshold_s = settings.camera_offline_threshold_s
+        # M7: kamera offline → Dahua external alarm → DMSS push. camera_channels
+        # kamera adını NVR alarm channel'ına eşler (zones.yaml dahua_channel'dan).
+        self._dahua = dahua
+        self._camera_channels = camera_channels or {}
         self._client = httpx.AsyncClient(
             base_url=settings.frigate_internal_url,
             timeout=httpx.Timeout(10.0),
@@ -92,6 +100,27 @@ class CameraMonitor:
                     last_seen_s_ago=int(elapsed),
                     threshold_s=int(self._threshold_s),
                 )
+                await self._emit_offline_alarm(cam_id)
+
+    async def _emit_offline_alarm(self, camera_id: str) -> None:
+        """Kamera offline → Dahua external alarm → DMSS push (best-effort).
+
+        Yalnız bir kez tetiklenir (offline_alert_sent yukarıda set edildi).
+        Channel: kameranın zone dahua_channel'ı; yoksa global default.
+        """
+        if self._dahua is None:
+            return
+        channel = self._camera_channels.get(camera_id, self._settings.dahua_alarm_channel)
+        try:
+            await self._dahua.trigger_external_alarm(
+                channel=channel,
+                event_type="camera_offline",
+                description=f"{camera_id}: kamera cevrimdisi (frame yok)",
+            )
+        except DahuaAlarmError as exc:
+            log.warning("camera.offline_alarm_failed", camera=camera_id, error=str(exc))
+            return
+        log.info("camera.offline_alarm_sent", camera=camera_id, channel=channel)
 
     async def close(self) -> None:
         await self._client.aclose()

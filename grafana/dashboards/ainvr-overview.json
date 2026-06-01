@@ -327,6 +327,37 @@
           "rawSql": "SELECT ts AS \"Zaman\", zone AS \"Alan\", event_type AS \"Tip\", round(score::numeric, 2) AS \"Skor\", coalesce((metadata->>'alarm_emitted')::bool, false) AS \"Alarm\" FROM zone_events ORDER BY ts DESC LIMIT 20"
         }
       ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Çevrimdışı Kamera",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 21 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS \"deger\" FROM camera_status WHERE is_online = false"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Kamera Durumu",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 21 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT camera_id AS \"Kamera\", is_online AS \"Online\", last_seen_at AS \"Son Görülme\", offline_alert_sent AS \"Uyarildi\" FROM camera_status ORDER BY is_online ASC, camera_id"
+        }
+      ]
     }
   ]
 }
