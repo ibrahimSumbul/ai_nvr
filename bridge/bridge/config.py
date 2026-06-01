@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # Frigate (bridge container'ından internal erişim — snapshot fetch için)
     frigate_internal_url: str = Field(default="http://frigate:5000")
 
+    # Kamera offline tespit (M7) — Frigate /api/stats camera_fps izlenir.
+    camera_check_interval_s: float = Field(default=30.0, ge=5.0, le=300.0)
+    # Bir kamera bu süredir frame göndermiyorsa (camera_fps=0) offline sayılır.
+    camera_offline_threshold_s: float = Field(default=60.0, ge=10.0, le=600.0)
+
     # Dahua (M4) — NVR'a external alarm push. docs/05-dahua-integration.md
     dahua_nvr_host: str = Field(default="")
     dahua_nvr_port: int = Field(default=80, ge=1, le=65535)
