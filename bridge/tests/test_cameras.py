@@ -37,6 +37,25 @@ class FakeDB:
             st["offline_alert_sent"] = True
 
 
+class FakeDahua:
+    def __init__(self, *, raises: Exception | None = None) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self._raises = raises
+
+    async def trigger_external_alarm(
+        self, channel: int, event_type: str, description: str, snapshot_path: str | None = None
+    ) -> None:
+        self.calls.append({"channel": channel, "event_type": event_type})
+        if self._raises is not None:
+            raise self._raises
+
+    async def health_check(self) -> bool:
+        return True
+
+    async def close(self) -> None:
+        pass
+
+
 class Clock:
     def __init__(self, start: datetime) -> None:
         self.now = start
@@ -54,9 +73,17 @@ def _settings(**overrides: Any) -> Settings:
     return Settings(_env_file=None, **base)  # type: ignore[call-arg]
 
 
-def _monitor(db: FakeDB, holder: dict[str, Any], clock: Clock) -> CameraMonitor:
+def _monitor(
+    db: FakeDB,
+    holder: dict[str, Any],
+    clock: Clock,
+    dahua: FakeDahua | None = None,
+    camera_channels: dict[str, int] | None = None,
+) -> CameraMonitor:
     """CameraMonitor'ı MockTransport'lu stats endpoint ile kur."""
-    m = CameraMonitor(_settings(), db, clock=clock)  # type: ignore[arg-type]
+    m = CameraMonitor(
+        _settings(), db, clock=clock, dahua=dahua, camera_channels=camera_channels  # type: ignore[arg-type]
+    )
 
     def handler(request: httpx.Request) -> httpx.Response:
         if holder.get("fail"):
@@ -197,6 +224,84 @@ async def test_camera_fps_none_treated_as_offline() -> None:
     await m.check()
 
     assert db.offline_calls == ["cam_test"]  # None → 0 → offline
+    await m.close()
+
+
+async def test_offline_triggers_dahua_alarm_with_camera_channel() -> None:
+    """Offline → Dahua external alarm, kameranın channel'ı ile."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    dahua = FakeDahua()
+    holder = {"stats": _stats(cam_kapi=5.0)}
+    m = _monitor(db, holder, clock, dahua=dahua, camera_channels={"cam_kapi": 7})
+
+    await m.check()  # online
+    holder["stats"] = _stats(cam_kapi=0.0)
+    clock.advance(70)
+    await m.check()  # offline → alarm
+
+    assert db.offline_calls == ["cam_kapi"]
+    assert dahua.calls == [{"channel": 7, "event_type": "camera_offline"}]
+    await m.close()
+
+
+async def test_recovery_then_offline_realarm() -> None:
+    """offline → recovery → tekrar offline → yeni alarm (flag recovery'de resetlenir)."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    dahua = FakeDahua()
+    holder = {"stats": _stats(cam_test=5.0)}
+    m = _monitor(db, holder, clock, dahua=dahua)
+
+    await m.check()  # online
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()  # offline → alarm 1
+    holder["stats"] = _stats(cam_test=5.0)
+    clock.advance(10)
+    await m.check()  # recovery (flag reset)
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()  # tekrar offline → alarm 2
+
+    assert len(dahua.calls) == 2  # recovery sonrası tekrar uyardı
+    await m.close()
+
+
+async def test_offline_alarm_falls_back_to_default_channel() -> None:
+    """camera_channels'ta kamera yoksa settings.dahua_alarm_channel (default 1)."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    dahua = FakeDahua()
+    holder = {"stats": _stats(cam_test=5.0)}
+    m = _monitor(db, holder, clock, dahua=dahua)  # camera_channels None
+
+    await m.check()
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()
+
+    assert dahua.calls[0]["channel"] == 1  # default dahua_alarm_channel
+    await m.close()
+
+
+async def test_offline_alarm_failure_does_not_break() -> None:
+    """Dahua alarm hatası offline işaretlemeyi bozmaz (best-effort)."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    from bridge.dahua import DahuaAlarmError
+
+    dahua = FakeDahua(raises=DahuaAlarmError("NVR yok"))
+    holder = {"stats": _stats(cam_test=5.0)}
+    m = _monitor(db, holder, clock, dahua=dahua)
+
+    await m.check()
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()
+
+    assert db.offline_calls == ["cam_test"]  # alarm hatasına rağmen offline işaretlendi
+    assert len(dahua.calls) == 1
     await m.close()
 
 

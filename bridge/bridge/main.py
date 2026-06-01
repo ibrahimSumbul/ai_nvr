@@ -94,13 +94,19 @@ async def run(settings: Settings) -> None:
     llm = build_llm_client(settings)
     dahua = build_dahua_client(settings)  # None → NVR push devre dışı (dev/disabled)
     truck_handler = build_truck_handler(settings, db, snapshots, llm)
-    camera_monitor = CameraMonitor(settings, db)  # M7 — offline tespit
 
     await db.connect()
 
     zones_cfg = load_zones_config(ZONES_PATH)
     state_machines = build_state_machines(zones_cfg, db, snapshots, dahua)
     cameras_to_zones = index_by_camera(zones_cfg)
+
+    # M7 — kamera offline tespit. Offline → Dahua alarm için kamera→NVR channel
+    # eşlemesi zones.yaml dahua_channel'dan türetilir.
+    camera_channels = {z.camera: z.rules.dahua_channel for z in zones_cfg.zones}
+    camera_monitor = CameraMonitor(
+        settings, db, dahua=dahua, camera_channels=camera_channels
+    )
 
     # State recovery
     for zsm in state_machines.values():

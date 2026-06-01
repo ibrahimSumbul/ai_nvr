@@ -172,9 +172,10 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 **Hedef**: Sistem unutulabilir hale gelsin.
 
-- [x] **Kamera offline tespit** — `bridge/cameras.py` `CameraMonitor`: Frigate `/api/stats` `camera_fps` poll (`camera_check_interval_s`), `camera_offline_threshold_s` (60s) frame yoksa `camera_status` offline + tek uyarı; recovery'de online. PR #17.
+- [x] **Kamera offline tespit** — `bridge/cameras.py` `CameraMonitor`: Frigate `/api/stats` `camera_fps` poll, `camera_offline_threshold_s` (60s) frame yoksa `camera_status` offline + tek uyarı; recovery'de online. PR #17.
+- [x] **Kamera offline → Dahua/DMSS alarm + Grafana paneli** — offline'da external alarm (kamera→NVR channel zones.yaml'dan, best-effort) + dashboard'da "Çevrimdışı Kamera" stat + "Kamera Durumu" tablosu. PR #18.
 - [ ] Backup stratejisi (Postgres + snapshot diski)
-- [ ] Alert kuralları — kamera offline / Frigate down → DMSS push (M4 alarm) veya Grafana alert. (E-posta/Telegram **kapsam dışı** — DMSS push kararı.)
+- [ ] Frigate-down alert (kamera ≠ Frigate; servis LWT `frigate/available`)
 - [ ] Disk doluluk alarmı (LLM bütçe alarmı **geçersiz** — Ollama lokal $0)
 - [ ] Log rotation (docker json-file zaten max-size/max-file ile sınırlı; runbook'a yaz)
 - [ ] Sistem restart senaryosu test

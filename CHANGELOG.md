@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M7 — Kamera Offline Alarm + Grafana Paneli**
+- `bridge/cameras.py` — `CameraMonitor` offline tespitinde **Dahua external alarm** (`camera_offline` event → DMSS push, best-effort). Kamera→NVR channel `camera_channels` map'i ile (zones.yaml `dahua_channel`'dan türetilir); yoksa global `dahua_alarm_channel`. `_emit_offline_alarm` tek-uyarı (offline_alert_sent ile).
+- `bridge/main.py` — `camera_channels` map (zones_cfg'den) + `CameraMonitor`'a `dahua` + map enjekte.
+- `grafana/dashboards/ainvr-overview.json` — 2 yeni panel: "Çevrimdışı Kamera" stat (background renkli) + "Kamera Durumu" tablosu (camera_id/online/son görülme/uyarıldı).
+- 3 yeni unit test (offline→alarm camera channel, default channel fallback, alarm-failure best-effort). Canlı: 10 panel render, 5 kamera online.
+
 **M7 — Kamera Offline Tespit (kısmi)**
 - `bridge/cameras.py` — `CameraMonitor`: Frigate `/api/stats` HTTP poll, her kameranın `camera_fps`'ini izler. `camera_fps>0` → online (`last_seen_at` güncelle); `camera_offline_threshold_s` (60s) frame yoksa offline + tek uyarı (`offline_alert_sent`); recovery'de tekrar online. `cameras` wrapper (0.14+) + top-level (eski) ikisini destekler; Frigate erişilemezse kameraları offline işaretlemez (Frigate down ≠ kamera down).
 - `bridge/db.py` — `get_camera_status` + `mark_camera_online` (upsert) + `mark_camera_offline` (`camera_status` tablosu, M1'de hazır)
