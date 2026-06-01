@@ -7,7 +7,7 @@ Kısa karar kaydı: hangi teknoloji seçildi, neden, ve hangileri elendi.
 | Aday | Sonuç | Neden |
 |---|---|---|
 | **Frigate** | ✅ Seçildi | Coral USB native, ONVIF + RTSP olgun, zone polygon + tracking + MQTT, aktif community |
-| MotionEye | ❌ Elendi | Sadece motion detection, AI yok → her motion'da Haiku spam olur |
+| MotionEye | ❌ Elendi | Sadece motion detection, AI yok → her motion'da LLM spam olur |
 | DeepStack | ❌ Elendi | Olgunluk düşük, Coral desteği sınırlı, dokümantasyon zayıf |
 | Shinobi | ❌ Elendi | Eski mimari, Coral entegrasyonu yok, geliştirme yavaş |
 | BlueIris | ❌ Elendi | Windows-only, commercial lisans, container değil |
@@ -22,27 +22,34 @@ Detay → [`docs/10-why-frigate.md`](10-why-frigate.md)
 
 | Aday | Sonuç | Neden |
 |---|---|---|
-| **Python (asyncio)** | ✅ Seçildi | Anthropic/Pydantic/asyncpg/paho-mqtt olgun, hızlı yazılır, test ekosistemi güçlü |
+| **Python (asyncio)** | ✅ Seçildi | httpx/Pydantic/asyncpg/paho-mqtt olgun, hızlı yazılır, test ekosistemi güçlü; Ollama HTTP API'ye doğrudan async çağrı kolay |
 | Node.js | ❌ Elendi | I/O için iyi ama görüntü işleme libs zayıf, Pydantic gibi validation yok |
-| Go | ❌ Elendi | Hızlı ama Anthropic SDK resmi yok, MQTT libs daha az olgun, kapsam küçük olduğu için fayda yok |
+| Go | ❌ Elendi | Hızlı ama MQTT/LLM client ekosistemi daha az olgun, kapsam küçük olduğu için fayda yok |
 | Rust | ❌ Elendi | Performans gerekmiyor, yazma süresi 3–5× uzar |
 | Java/Kotlin | ❌ Elendi | RAM ayak izi büyük, JVM overhead 8 GB tampona ek yük |
 | C# / .NET | ❌ Elendi | Cross-platform tamam ama Python kadar AI/ML ekosistemi yok |
 
 Karar kriterleri: **hızlı yazma + AI/ML ekosistem + üretim kalitesi**. Python üçünü de veriyor.
 
-## 3. LLM Sağlayıcı → **Claude Haiku 4.5**
+## 3. LLM Sağlayıcı → **Lokal Ollama (`qwen2.5vl:7b`)**
 
-| Aday | $/M token (in/out) | Sonuç | Neden |
+> **M3'te değişti (2026-05-31): Claude Haiku → lokal Ollama.** Başlangıçta bulut Claude Haiku seçilmişti; M3'te gizlilik + sıfır marjinal maliyet + kota-yok gerekçeleriyle lokal Ollama'ya geçildi. Bulut Anthropic hibrit artık **planlı fallback** (switch + factory hazır, `AnthropicClient` yok). Aşağıdaki tablo bu kararı yansıtır.
+
+| Aday | Maliyet | Sonuç | Neden |
 |---|---|---|---|
-| **Claude Haiku 4.5** | 0.80 / 4.00 | ✅ Seçildi | Vizyon güçlü, JSON çıktı güvenilir, prompt caching desteği, Anthropic SDK |
-| Gemini 2.5 Flash | 0.30 / 2.50 | ❌ Şimdilik | ~3× ucuz ama: Google ekosistem bağımlılığı, SDK olgunluk Anthropic'in altında |
-| GPT-4o-mini | 0.15 / 0.60 | ❌ Şimdilik | En ucuz ama: vendor neutrality için ayrı bir karar olur, JSON mode güvenirliği test edilmedi |
-| Sonnet 4.6 | 3.00 / 15.00 | ❌ Elendi | 4× pahalı, gerek yok — sorularımız Haiku için yeterince basit |
-| GPT-4 | 30 / 60 | ❌ Elendi | Saçma pahalı |
-| Lokal Qwen2.5-VL 7B | $0 (donanım var) | 🟡 Gelecek | Offline çalışma için ileride, ekstra GPU lazım |
+| **Ollama `qwen2.5vl:7b` (lokal)** | $0 (sadece elektrik) | ✅ Seçildi (M3) | **Gizlilik** (görüntüler tesisten çıkmaz), **$0 marjinal maliyet**, **kota/rate-limit yok**, vizyon + `format=json` structured output yeterli, CPU'da çalışır (GPU şart değil) |
+| Claude Haiku (bulut) | ~$0.80 / $4.00 /M | 🟡 Planlı fallback | Hızlı + güçlü vizyon ama: token maliyeti, görüntü dışarı çıkar (gizlilik), API kotası. `LLM_PROVIDER=anthropic` switch + `ANTHROPIC_*` ayarları rezerve; implementasyon henüz yok |
+| Gemini 2.5 Flash (bulut) | ~$0.30 / $2.50 /M | ❌ | Yine bulut: görüntü dışarı çıkar + ekosistem bağımlılığı |
+| GPT-4o-mini (bulut) | ~$0.15 / $0.60 /M | ❌ | Yine bulut: gizlilik + vendor kararı |
+| Daha büyük lokal model (`qwen2.5vl:32b`) | $0 (RAM/VRAM ister) | 🟡 Gelecek | Kalite için; daha çok bellek/GPU gerekir |
 
-**Geri dönüş noktası**: Eğer aylık $25 bütçeyi 6 ay üst üste aşarsak → Gemini Flash veya GPT-4o-mini'ye geçiş ciddi değerlendirilir. Bridge'de `bridge/llm.py` provider-agnostic interface ile yazılır (M3).
+**Neden lokal kazandı (M3 gerekçesi):**
+- **Gizlilik / KVKK-GDPR**: Endüstriyel tesis görüntüleri (kişi, araç) hiçbir bulut servise gitmez — host'ta kalır.
+- **Maliyet**: Marjinal LLM maliyeti $0; aylık tekrarlayan ücret yok (eski "$10–25/ay Haiku bütçesi" tamamen geçersiz).
+- **Bağımsızlık**: API kotası / rate-limit / fiyat değişikliği riski yok.
+- **Yeterlilik**: Tır renk + dorse tipi gibi görevler için `qwen2.5vl:7b` + `format=json` yeterli (M3 kalite tuning ile renk prompt'u sağlamlaştırıldı).
+
+**Mimari hazırlık**: Bridge `bridge/bridge/llm.py` provider-agnostic interface (`LLMClient` Protocol) ile yazıldı; `build_llm_client` şu an yalnızca `ollama` döndürür, başka provider'a `ValueError`. Bu sayede planlı Anthropic fallback ileride sadece `AnthropicClient` eklenerek aktive edilebilir — switch + factory hazır.
 
 ## 4. Otomasyon Katmanı → **Custom Python servisi** (n8n değil)
 
