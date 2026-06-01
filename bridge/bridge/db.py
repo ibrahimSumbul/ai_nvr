@@ -278,3 +278,72 @@ class Database:
                 frigate_event_id,
             )
             return row is not None
+
+    # ---- Door events (M6.5) ----
+
+    async def insert_door_event(
+        self,
+        zone: str,
+        camera_id: str,
+        entry_ts: datetime,
+        direction: str,
+        tracking_id: str | None = None,
+        entry_snapshot_path: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> int:
+        """Kapı geçişi (traversal) kaydı aç. ms hassasiyetli entry_ts. ID döndürür.
+
+        exit_ts/duration_ms açılışta boş; alternating session modelinde 2. geçiş
+        `close_door_event` ile bunları doldurur (giriş→çıkış eşleştirme).
+        """
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO door_events
+                    (zone, camera_id, entry_ts, direction, tracking_id,
+                     entry_snapshot_path, metadata)
+                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                RETURNING id
+                """,
+                zone,
+                camera_id,
+                entry_ts,
+                direction,
+                tracking_id,
+                entry_snapshot_path,
+                json.dumps(metadata or {}),
+            )
+            log.info(
+                "door_event.inserted",
+                id=row["id"],
+                zone=zone,
+                direction=direction,
+                tracking_id=tracking_id,
+            )
+            return int(row["id"])
+
+    async def close_door_event(
+        self,
+        door_event_id: int,
+        exit_ts: datetime,
+        duration_ms: int,
+        exit_snapshot_path: str | None = None,
+    ) -> None:
+        """Açık kapı oturumunu kapat — çıkış zamanı + süre (alternating 2. geçiş)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE door_events
+                SET exit_ts = $2, duration_ms = $3, exit_snapshot_path = $4
+                WHERE id = $1
+                """,
+                door_event_id,
+                exit_ts,
+                duration_ms,
+                exit_snapshot_path,
+            )
+            log.info(
+                "door_event.closed",
+                id=door_event_id,
+                duration_ms=duration_ms,
+            )
