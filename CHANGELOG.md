@@ -10,7 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 **M3 — Truck gerçek E2E + Frigate truck detection fix**
 - `frigate/config.yml`:
   - **`model.labelmap: 7: truck`** override — Frigate default SSD MobileNet modeli COCO label 7'yi (truck) varsayılan olarak "car"a remap ediyordu (tüm büyük araçlar "car"). Override ile truck/car ayrımı geri kazanıldı. **Production değeri** (YOLO upgrade gerekmedi — model truck'ı zaten algılıyordu).
-  - `cam_tir` test kamerası — YouTube tır videosu (MediaMTX cam_tir.mp4) ile gerçek truck E2E fixture. Zone **zorunlu**: global `detect.enabled=false`'da Frigate zone'suz kamerada detection yapmıyor (E2E debug bulgusu, config yorumunda reproduce talimatı).
+  - `cam_tir` test kamerası — YouTube tır videosu (MediaMTX cam_tir.mp4) ile gerçek truck E2E fixture. cam_tir zone'suz iken detection başlamadı, zone ekleyince çalıştı (ampirik bulgu; kesin neden — zone mu motion baseline mı — doğrulanmadı). Config yorumunda reproduce talimatı.
 - Doğrulama: gerçek video → Frigate truck detect → bridge → Ollama → **4 `truck_events`** (beyaz çekici, gri/metalik dorse — videodaki tırlarla uyumlu), 5 `llm_usage` (~46s ort).
 
 **M7 — Operasyon Runbook**

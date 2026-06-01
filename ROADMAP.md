@@ -105,7 +105,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [x] **Hibrit fallback altyapısı**: `LLM_PROVIDER` switch + `build_llm_client` factory (anthropic ileride)
 - [x] **M3 öncesi prereq**: `reset_admin_password: false` + Ollama host + `qwen2.5vl:7b`
 
-- [x] **Gerçek E2E** (PR #20): YouTube tır videosu → MediaMTX → Frigate truck detect → bridge → Ollama → `truck_events`. 4 gerçek kayıt (beyaz çekici, gri/metalik dorse). İki kök neden çözüldü: **labelmap `7:truck` override** (Frigate default modeli truck'ı "car" sanıyordu — YOLO gerekmedi) + **zone zorunluluğu** (global `detect.enabled=false`'da zone'suz kamera detection yapmıyor).
+- [x] **Gerçek E2E** (PR #20): YouTube tır videosu → MediaMTX → Frigate truck detect → bridge → Ollama → `truck_events`. 4 gerçek kayıt (beyaz çekici, gri/metalik dorse). Kritik fix: **labelmap `7:truck` override** (Frigate default modeli truck'ı "car" sanıyordu — YOLO gerekmedi). Ayrıca cam_tir zone'suz iken detection başlamadı, zone ekleyince çalıştı (ampirik; kesin neden doğrulanmadı).
 
 **Doğrulama**: ✅ Smoke (PR #6, #9) + ✅ **gerçek video E2E** (PR #20) — Frigate truck detect → Ollama renk analizi → `truck_events`. Latency ~46s (CPU 320px model).
 

@@ -154,10 +154,12 @@ cameras:
   # Reproduce: yt-dlp ile tır videosu indir → ffmpeg 640x480 (ORİJİNAL fps koru!
   #   5fps Frigate watchdog'u tetikler) h264 GOP~2s → ~/Desktop/MediaMTX/videos/
   #   cam_tir.mp4 → mediamtx-publisher restart.
-  # ÖNEMLİ: zone ZORUNLU — global detect.enabled=false olduğundan Frigate
-  #   zone'suz kamerada detection yapmıyor. Truck event'i kendisi zone-bağımsız
-  #   (trucks.py label==truck) ama Frigate'in detection'ı zone ile tetikleniyor.
-  #   Bu + labelmap 7:truck override E2E debug'ında bulundu.
+  # NOT: zone'lu bu config'de detection + truck event çalışıyor. E2E debug'ında
+  #   cam_tir zone'suz iken detection_fps=0 gözlendi; zone ekleyince başladı
+  #   (kesin neden zone mu, motion baseline oturması mı doğrulanmadı — ampirik).
+  #   Truck event'i trucks.py'de zone-bağımsız (label==truck); zone yine de
+  #   bırakıldı (diğer kameralarla tutarlı + çalışan config). labelmap 7:truck
+  #   override truck label'ının üretilmesi için kritik.
   cam_tir:
     ffmpeg:
       inputs:
