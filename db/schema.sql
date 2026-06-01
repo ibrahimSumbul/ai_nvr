@@ -79,6 +79,9 @@ CREATE TABLE IF NOT EXISTS truck_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_truck_events_ts ON truck_events (ts DESC);
+-- Dedup sorgusu (truck_event_exists) için: metadata->>'frigate_event_id' (0002)
+CREATE INDEX IF NOT EXISTS idx_truck_events_frigate_event_id
+    ON truck_events ((metadata->>'frigate_event_id'));
 
 CREATE TABLE IF NOT EXISTS camera_status (
     camera_id TEXT PRIMARY KEY,

@@ -179,11 +179,20 @@ class ZoneStateMachine:
         self._state = "OCCUPIED"
         self._since = now
 
+        # Snapshot best-effort: trucks.py'nin aksine burada snapshot KANIT/ek —
+        # None olsa da first_entry kaybedilmez (alarm + log değerli). Snapshot
+        # ilk girişte hazır değilse (`has_snapshot=false`) görsel kanıt eksik
+        # kalır; olayı geciktirmemek için beklemeyiz, sadece metadata + log ile
+        # görünür kılarız (Grafana/operatör fark eder). Bkz. docs/04 snapshot notu.
         snapshot_path: str | None = None
         if event.after.has_snapshot:
             saved = await self._snapshots.fetch_event_snapshot(event.event_id)
             if saved is not None:
                 snapshot_path = str(saved)
+            else:
+                log.warning("zone.snapshot_fetch_failed", zone=cfg.name, event_id=event.event_id)
+        else:
+            log.debug("zone.snapshot_unavailable", zone=cfg.name, event_id=event.event_id)
 
         is_active = _is_within_active_hours(now, cfg.rules.active_hours)
         alarm_emitted = (
@@ -194,6 +203,7 @@ class ZoneStateMachine:
             "label": event.label,
             "active_hour": is_active,
             "alarm_emitted": alarm_emitted,
+            "snapshot_available": snapshot_path is not None,
         }
 
         zone_event_id = await self._db.insert_zone_event(

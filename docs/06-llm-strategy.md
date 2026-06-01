@@ -51,6 +51,42 @@ payload = {
 # POST /api/generate → response.json()["response"] → TruckAnalysis.model_validate_json(...)
 ```
 
+## Snapshot Seçimi ve Yaşam Döngüsü
+
+LLM'e (ve olay kayıtlarına) giden görüntünün **nasıl seçildiği** sistemin doğruluğu açısından kritiktir.
+
+### Tek kare, Frigate'in "best frame"i
+
+Frigate bir nesneyi takip ettiği süre boyunca (tracking session: `new → update → end`) o nesnenin **en yüksek skorlu/en temsili karesini** "snapshot" olarak saklar. Bridge bu kareyi tek bir HTTP çağrısıyla alır:
+
+```
+GET /api/events/<event_id>/snapshot.jpg?height=480
+```
+
+- **Tek kare** — video/çoklu kare değil. qwen2.5vl tek anlık görüntüden renk/tip çıkarır.
+- Kareyi **Frigate seçer** (en iyi skor anı), bridge değil. `event_id` session boyunca sabittir.
+- **`?height=480`** server-side küçültme — CPU inference gecikmesini sınırlar (bkz. Maliyet/Gecikme).
+
+### İki snapshot sınıfı: kritik vs best-effort
+
+Snapshot her tüketici için aynı öneme sahip değildir — bu, bilinçli bir tasarım ayrımıdır:
+
+| Tüketici | Snapshot rolü | Snapshot yoksa |
+|---|---|---|
+| **`trucks.py`** (LLM girdisi) | **Kritik** — görüntü olmadan analiz anlamsız | Olay işlenmez (aşağıdaki retry) |
+| **`zones.py`** (ilk giriş) | Best-effort — kanıt/ek | `first_entry` yine yazılır (alarm + log değerli); `metadata.snapshot_available=false` + uyarı log'u |
+| **`doors.py`** (kapı geçişi) | Best-effort — kanıt/ek | `door_event` yine yazılır; aynı işaretleme |
+
+### Snapshot-gated dedup (tır kaybı önleme)
+
+Frigate snapshot'ı bir tracking session'ın **ilk** event'inde henüz hazır olmayabilir (`has_snapshot=false`; best frame nesne ilerledikçe oluşur). `trucks.py` bu durumu özel ele alır:
+
+- Snapshot hazır **olana kadar** olay dedup'a (`_processed`) **eklenmez** → bir sonraki event'te tekrar denenir.
+- Dedup işareti **yalnız snapshot başarıyla alındıktan sonra** konur → her tır **tam bir kez** analiz edilir.
+- Aksi tasarımda (önce dedup, sonra snapshot) ilk event snapshot'sız gelirse tır **kalıcı kaybolurdu** — snapshot sonradan hazır olsa bile dedup'a takılırdı. (Bu bir E2E debug bulgusudur; `trucks.py` docstring'inde detay.)
+
+Best-effort tüketicilerde (zones/doors) retry yapılmaz: olayı (ve alarmı) geciktirmemek için snapshot beklenmez; yoksa olay snapshot'sız yazılır ve durum `metadata` + log ile görünür kılınır.
+
 ## Prompt 1: Tır + Dorse Renk Analizi
 
 ### Sistem Prompt (`TRUCK_PROMPT_SYSTEM`, gerçek)
