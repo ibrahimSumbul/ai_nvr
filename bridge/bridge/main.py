@@ -19,6 +19,7 @@ from pathlib import Path
 
 import structlog
 
+from bridge.cameras import CameraMonitor
 from bridge.config import Settings, get_settings
 from bridge.dahua import (
     DahuaAlarmClient,
@@ -93,6 +94,7 @@ async def run(settings: Settings) -> None:
     llm = build_llm_client(settings)
     dahua = build_dahua_client(settings)  # None → NVR push devre dışı (dev/disabled)
     truck_handler = build_truck_handler(settings, db, snapshots, llm)
+    camera_monitor = CameraMonitor(settings, db)  # M7 — offline tespit
 
     await db.connect()
 
@@ -128,7 +130,10 @@ async def run(settings: Settings) -> None:
         _listen_loop(mqtt, state_machines, cameras_to_zones, truck_handler, stop_event)
     )
     ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
-    tasks = [listener, ticker]
+    camera_task = asyncio.create_task(
+        _camera_monitor_loop(camera_monitor, settings, stop_event)
+    )
+    tasks = [listener, ticker, camera_task]
 
     # M4 — pending Dahua alarm retry worker (yalnızca alarm aktifse)
     if dahua is not None:
@@ -149,6 +154,7 @@ async def run(settings: Settings) -> None:
         await llm.close()
         if dahua is not None:
             await dahua.close()
+        await camera_monitor.close()
         await snapshots.close()
         await db.close()
         log.info("bridge.shutdown_complete")
@@ -279,6 +285,25 @@ async def _dahua_retry_loop(
                     break
                 await db.mark_dahua_alarm_sent(row["id"])
                 log.info("dahua.retry_sent", zone_event_id=row["id"], zone=row["zone"])
+
+
+async def _camera_monitor_loop(
+    monitor: CameraMonitor,
+    settings: Settings,
+    stop_event: asyncio.Event,
+) -> None:
+    """Periyodik kamera offline kontrolü (M7) — `camera_check_interval_s`."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(
+                stop_event.wait(), timeout=settings.camera_check_interval_s
+            )
+            return  # stop_event geldi
+        except TimeoutError:
+            try:
+                await monitor.check()
+            except Exception as exc:  # noqa: BLE001
+                log.error("camera.check_failed", error=str(exc))
 
 
 def main() -> None:
