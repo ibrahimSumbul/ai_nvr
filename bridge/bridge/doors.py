@@ -125,11 +125,17 @@ class DoorStateMachine:
         """Bir geçiş: açık oturum yoksa giriş, varsa çıkış (alternating)."""
         cfg = self._cfg
 
+        # Snapshot best-effort (kanıt) — None olsa da geçiş loglanır (zones.py
+        # ile aynı politika; trucks.py'deki kritik snapshot'tan farklı).
         snapshot_path: str | None = None
         if event.after.has_snapshot:
             saved = await self._snapshots.fetch_event_snapshot(event.event_id)
             if saved is not None:
                 snapshot_path = str(saved)
+            else:
+                log.warning("door.snapshot_fetch_failed", zone=cfg.name, event_id=event.event_id)
+        else:
+            log.debug("door.snapshot_unavailable", zone=cfg.name, event_id=event.event_id)
 
         if self._open_event_id is None:
             # GİRİŞ — yeni oturum aç
@@ -140,7 +146,11 @@ class DoorStateMachine:
                 direction="in",
                 tracking_id=event.event_id,
                 entry_snapshot_path=snapshot_path,
-                metadata={"label": event.label, "score": round(event.score, 3)},
+                metadata={
+                    "label": event.label,
+                    "score": round(event.score, 3),
+                    "snapshot_available": snapshot_path is not None,
+                },
             )
             self._open_event_id = event_id
             self._open_entry_ts = now

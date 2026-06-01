@@ -68,20 +68,29 @@ class TruckEventHandler:
         await self._process(event)
 
     async def _process(self, event: FrigateEvent) -> None:
-        self._processed.add(event.event_id)
-
-        # 1. Snapshot fetch (LLM için height-sınırlı — latency kontrolü)
-        snapshot_path = None
-        if event.after.has_snapshot:
-            saved = await self._snapshots.fetch_event_snapshot(
-                event.event_id, height=self._settings.llm_snapshot_max_height
-            )
-            if saved is not None:
-                snapshot_path = str(saved)
-
-        if snapshot_path is None:
-            log.warning("truck.no_snapshot", event_id=event.event_id)
+        # 1. Snapshot fetch — LLM için ZORUNLU girdi (height-sınırlı, latency).
+        #
+        # Snapshot-gated dedup: Frigate snapshot'ı bir tracking session'ın İLK
+        # truck event'inde henüz hazır olmayabilir (`has_snapshot=false`; best
+        # frame event ilerledikçe oluşur). Böyle durumda olayı "işlenmiş"
+        # SAYMA — `_processed`'e ekleme — ki snapshot hazır olunca sonraki
+        # event'te tekrar denensin. Aksi halde ilk event snapshot'sız gelirse
+        # tır kalıcı kaybolurdu (dedup'a girip bir daha denenmezdi). Dedup
+        # işareti yalnız snapshot başarıyla alındıktan sonra konur → analiz
+        # tam bir kez yapılır.
+        if not event.after.has_snapshot:
+            log.debug("truck.snapshot_not_ready", event_id=event.event_id)
             return
+        saved = await self._snapshots.fetch_event_snapshot(
+            event.event_id, height=self._settings.llm_snapshot_max_height
+        )
+        if saved is None:
+            log.warning("truck.snapshot_fetch_failed", event_id=event.event_id)
+            return
+        snapshot_path = str(saved)
+
+        # Snapshot hazır → bu tır artık işlenmiş; sonraki event'ler dedup'a takılır.
+        self._processed.add(event.event_id)
 
         # 2. LLM analiz
         try:

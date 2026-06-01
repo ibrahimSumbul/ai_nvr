@@ -206,8 +206,8 @@ async def test_dedup_db_check() -> None:
     assert db.truck_events == []
 
 
-async def test_no_snapshot_skipped() -> None:
-    """Frigate snapshot fetch None döndürürse → LLM çağrılmaz."""
+async def test_no_snapshot_skipped_and_not_deduped() -> None:
+    """Snapshot None → LLM çağrılmaz VE dedup'a eklenmez (retry için)."""
     db = FakeDB()
     llm = FakeLLM()
     handler = TruckEventHandler(
@@ -221,6 +221,41 @@ async def test_no_snapshot_skipped() -> None:
 
     assert llm.calls == []
     assert db.truck_events == []
+    assert "evt-nosnap" not in handler._processed  # dedup'a EKLENMEDİ → retry mümkün
+
+
+async def test_has_snapshot_false_skips_no_fetch_no_dedup() -> None:
+    """has_snapshot=false → fetch denenmez, dedup'a eklenmez (snapshot hazır değil)."""
+    db = FakeDB()
+    llm = FakeLLM()
+    snaps = FakeSnapshots()
+    handler = TruckEventHandler(_settings(), db, snaps, llm)  # type: ignore[arg-type]
+
+    await handler.on_event(_truck_event(event_id="evt-nohs", has_snapshot=False))
+
+    assert llm.calls == []
+    assert snaps.height_calls == []  # fetch hiç denenmedi (has_snapshot=false)
+    assert "evt-nohs" not in handler._processed
+
+
+async def test_snapshot_not_ready_then_retried_when_available() -> None:
+    """İlk event snapshot'sız → işlenmez; snapshot gelince aynı tır işlenir (tır kaybı yok)."""
+    db = FakeDB()
+    llm = FakeLLM()
+    snaps = FakeSnapshots(snapshot_returns=None)  # önce snapshot yok
+    handler = TruckEventHandler(_settings(), db, snaps, llm)  # type: ignore[arg-type]
+
+    # 1. event: snapshot fetch None → işlenmez, dedup'a eklenmez
+    await handler.on_event(_truck_event(event_id="evt-1"))
+    assert llm.calls == []
+    assert "evt-1" not in handler._processed
+
+    # Snapshot artık hazır → aynı tracking_id ikinci event → işlenir
+    snaps._returns = Path("/tmp/snap.jpg")
+    await handler.on_event(_truck_event(event_id="evt-1"))
+    assert len(llm.calls) == 1
+    assert len(db.truck_events) == 1
+    assert "evt-1" in handler._processed  # artık dedup'lı (tek analiz)
 
 
 async def test_llm_failure_logged_to_usage() -> None:

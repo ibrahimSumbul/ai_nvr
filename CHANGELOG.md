@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ## [Unreleased]
 
+### Fixed / Changed
+
+**Snapshot yaşam döngüsü sağlamlaştırma**
+- `bridge/trucks.py` — **snapshot-gated dedup**: Frigate snapshot'ı bir tracking session'ın ilk truck event'inde hazır değilse (`has_snapshot=false` veya fetch None) olay artık dedup'a (`_processed`) eklenmez → sonraki event'te (snapshot hazır olunca) tekrar denenir. Önceki sırada (önce dedup, sonra snapshot) ilk event snapshot'sız gelirse tır **kalıcı kayboluyordu**. Dedup yalnız snapshot başarısından sonra konur (analiz tam bir kez).
+- `bridge/zones.py` + `bridge/doors.py` — best-effort snapshot gözlemlenebilirliği: snapshot None olsa da olay yine yazılır (kanıt opsiyonel), ama `metadata.snapshot_available=false` + uyarı/debug log ile görünür kılınır.
+- `docs/06-llm-strategy.md` — "Snapshot Seçimi ve Yaşam Döngüsü" bölümü: tek best-frame seçimi, `?height=480`, **kritik (trucks) vs best-effort (zones/doors)** politikası, snapshot-gated dedup gerekçesi.
+- 5 yeni/güncellenmiş unit test (snapshot None → dedup'a eklenmez, has_snapshot=false → fetch yok, snapshot-not-ready → retry → işlenir).
+
 ### Added
 
 **M3 — Truck gerçek E2E + Frigate truck detection fix**
