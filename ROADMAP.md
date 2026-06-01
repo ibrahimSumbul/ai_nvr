@@ -168,18 +168,19 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 7: Operasyonel Olgunluk
+## Milestone 7: Operasyonel Olgunluk 🚧
 
 **Hedef**: Sistem unutulabilir hale gelsin.
 
+- [x] **Kamera offline tespit** — `bridge/cameras.py` `CameraMonitor`: Frigate `/api/stats` `camera_fps` poll (`camera_check_interval_s`), `camera_offline_threshold_s` (60s) frame yoksa `camera_status` offline + tek uyarı; recovery'de online. PR #17.
 - [ ] Backup stratejisi (Postgres + snapshot diski)
-- [ ] Alert kuralları (Grafana → email/Telegram)
-- [ ] Disk doluluk + LLM bütçe alarmı
-- [ ] Log rotation
+- [ ] Alert kuralları — kamera offline / Frigate down → DMSS push (M4 alarm) veya Grafana alert. (E-posta/Telegram **kapsam dışı** — DMSS push kararı.)
+- [ ] Disk doluluk alarmı (LLM bütçe alarmı **geçersiz** — Ollama lokal $0)
+- [ ] Log rotation (docker json-file zaten max-size/max-file ile sınırlı; runbook'a yaz)
 - [ ] Sistem restart senaryosu test
 - [ ] Operasyon runbook (`docs/08-operations.md`)
 
-**Doğrulama**: 1 hafta dokunmadan stabil.
+**Doğrulama**: 1 hafta dokunmadan stabil. (Kamera offline ✅ — CameraMonitor canlı `/api/stats` + `camera_status` upsert doğrulandı, 5 kamera online.)
 
 ---
 
