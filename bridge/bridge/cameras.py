@@ -5,9 +5,10 @@ düşürür. CameraMonitor periyodik olarak stats'ı çeker; `camera_fps>0` ise
 kamerayı canlı (last_seen güncelle), aksi halde son görülmeden bu yana
 `camera_offline_threshold_s` geçtiyse offline işaretler (bir kez uyarır).
 
-Durum `camera_status` tablosunda tutulur (restart-safe). Offline uyarısı şimdilik
-log + DB + Grafana; Dahua/DMSS offline alarmı ileride (kamera→NVR channel
-eşlemesi + kullanıcı kararı gerekir).
+Durum `camera_status` tablosunda tutulur (restart-safe). Offline'da: log + DB +
+Grafana paneli + (dahua client varsa) **Dahua external alarm → DMSS push**
+(`camera_channels` ile kamera→NVR channel eşlemesi). Tek-uyarı; recovery'de flag
+resetlenir, tekrar düşerse yeniden uyarır.
 
 Olay-tabanlı değil HTTP-poll: bir kameradan event gelmemesi "hareket yok"
 demektir (offline değil); `camera_fps` gerçek stream sağlığını gösterir.

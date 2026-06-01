@@ -245,6 +245,29 @@ async def test_offline_triggers_dahua_alarm_with_camera_channel() -> None:
     await m.close()
 
 
+async def test_recovery_then_offline_realarm() -> None:
+    """offline → recovery → tekrar offline → yeni alarm (flag recovery'de resetlenir)."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    dahua = FakeDahua()
+    holder = {"stats": _stats(cam_test=5.0)}
+    m = _monitor(db, holder, clock, dahua=dahua)
+
+    await m.check()  # online
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()  # offline → alarm 1
+    holder["stats"] = _stats(cam_test=5.0)
+    clock.advance(10)
+    await m.check()  # recovery (flag reset)
+    holder["stats"] = _stats(cam_test=0.0)
+    clock.advance(70)
+    await m.check()  # tekrar offline → alarm 2
+
+    assert len(dahua.calls) == 2  # recovery sonrası tekrar uyardı
+    await m.close()
+
+
 async def test_offline_alarm_falls_back_to_default_channel() -> None:
     """camera_channels'ta kamera yoksa settings.dahua_alarm_channel (default 1)."""
     db = FakeDB()
