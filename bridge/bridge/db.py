@@ -347,3 +347,43 @@ class Database:
                 id=door_event_id,
                 duration_ms=duration_ms,
             )
+
+    # ---- Camera status (M7 — offline tespit) ----
+
+    async def get_camera_status(self, camera_id: str) -> dict[str, Any] | None:
+        """Bir kameranın son durumu (offline kararı için last_seen_at + flag)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT camera_id, last_seen_at, is_online, offline_alert_sent
+                FROM camera_status WHERE camera_id = $1
+                """,
+                camera_id,
+            )
+            return dict(row) if row else None
+
+    async def mark_camera_online(self, camera_id: str, now: datetime) -> None:
+        """Kamera canlı (camera_fps>0): last_seen güncelle, online, alert flag reset."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO camera_status (camera_id, last_seen_at, is_online, offline_alert_sent)
+                VALUES ($1, $2, TRUE, FALSE)
+                ON CONFLICT (camera_id) DO UPDATE
+                SET last_seen_at = $2, is_online = TRUE, offline_alert_sent = FALSE
+                """,
+                camera_id,
+                now,
+            )
+
+    async def mark_camera_offline(self, camera_id: str) -> None:
+        """Kamera offline işaretle + alert gönderildi (last_seen_at korunur — tekrar uyarmaz)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE camera_status
+                SET is_online = FALSE, offline_alert_sent = TRUE
+                WHERE camera_id = $1
+                """,
+                camera_id,
+            )

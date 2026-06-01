@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M7 — Kamera Offline Tespit (kısmi)**
+- `bridge/cameras.py` — `CameraMonitor`: Frigate `/api/stats` HTTP poll, her kameranın `camera_fps`'ini izler. `camera_fps>0` → online (`last_seen_at` güncelle); `camera_offline_threshold_s` (60s) frame yoksa offline + tek uyarı (`offline_alert_sent`); recovery'de tekrar online. `cameras` wrapper (0.14+) + top-level (eski) ikisini destekler; Frigate erişilemezse kameraları offline işaretlemez (Frigate down ≠ kamera down).
+- `bridge/db.py` — `get_camera_status` + `mark_camera_online` (upsert) + `mark_camera_offline` (`camera_status` tablosu, M1'de hazır)
+- `bridge/main.py` — `_camera_monitor_loop` periyodik task (`camera_check_interval_s`, default 30s)
+- `bridge/config.py` — `camera_check_interval_s`, `camera_offline_threshold_s`
+- 8 yeni unit test (`test_cameras.py`: online/offline-threshold/before-threshold/once/recovery/no-baseline/Frigate-down/top-level-fallback) + gerçek-Frigate+Postgres E2E (5 kamera online)
+- Not: offline → DMSS/Dahua alarm + Grafana paneli sonraki adım (kamera→NVR channel eşlemesi gerekir)
+
 **M6.5 — Kapı Olayları (DMSS push)**
 - `bridge/doors.py` — `DoorStateMachine`: kapı geçişi (traversal) detektörü. **Alternating yön** modeli (1. geçiş "in"/giriş → oturum açar, 2. geçiş "out"/çıkış → kapatır + `duration_ms`). ms hassasiyetli `entry_ts`/`exit_ts`. Heartbeat dedup (tracking_id) + `cooldown_seconds` debounce. Her geçişte Dahua external alarm → DMSS push (best-effort). ⚠️ Yön varsayımı genel geçer değil — kamera açısı/kuruluma göre değerlendirilmeli (kod docstring).
 - `bridge/db.py` — `insert_door_event` (ms hassasiyetli entry, direction, tracking_id) + `close_door_event` (exit_ts + duration_ms hesabı)
