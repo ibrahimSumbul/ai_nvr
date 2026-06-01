@@ -195,6 +195,33 @@ async def test_dahua_none_still_logs_event() -> None:
     assert len(db.door_events) == 1  # event yazıldı
 
 
+async def test_end_event_clears_dedup_set() -> None:
+    """end event → tracking_id _processed_ids'ten çıkar (bellek sızıntısı önlemi)."""
+    db, snaps = FakeDB(), FakeSnapshots()
+    dsm = DoorStateMachine(_door_cfg(), db, snaps)  # type: ignore[arg-type]
+
+    await dsm.on_event(_event(event_id="p1"))
+    assert "p1" in dsm._processed_ids
+    # end event nesne hâlâ zone içindeyken gelse bile temizlenmeli
+    await dsm.on_event(_event(event_id="p1", type_="end"))
+    assert "p1" not in dsm._processed_ids
+
+
+async def test_end_then_reentry_counts_as_new_traversal() -> None:
+    """end sonrası aynı kişi tekrar girerse yeni geçiş (alternating → çıkış)."""
+    db, snaps = FakeDB(), FakeSnapshots()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    dsm = DoorStateMachine(_door_cfg(cooldown_seconds=0), db, snaps, clock=clock)  # type: ignore[arg-type]
+
+    await dsm.on_event(_event(event_id="p1"))  # giriş (in)
+    await dsm.on_event(_event(event_id="p1", type_="end"))  # tracking bitti
+    clock.advance(5)
+    await dsm.on_event(_event(event_id="p1"))  # tekrar → alternating çıkış (out)
+
+    assert len(db.door_events) == 1  # bir giriş
+    assert len(db.closed) == 1  # tekrar-giriş çıkış olarak işlendi
+
+
 async def test_dahua_failure_does_not_break() -> None:
     """Dahua alarm hatası geçiş kaydını bozmaz (best-effort)."""
     db, snaps = FakeDB(), FakeSnapshots()

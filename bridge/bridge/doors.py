@@ -89,13 +89,18 @@ class DoorStateMachine:
         if event.score < cfg.rules.min_person_score:
             return
 
-        in_zone = cfg.frigate_zone in event.current_zones
         tracking_id = event.event_id
 
+        # `end` = tracking session bitti. Zone içinde/dışında olmasına BAKMAKSIZIN
+        # dedup işaretini temizle. Frigate `end` event'i nesne hâlâ zone'dayken de
+        # gelebilir; aksi halde `_processed_ids` sınırsız büyür (7/24 bellek
+        # sızıntısı). Temizlik ayrıca aynı kişi tekrar girince yeni geçiş sağlar.
+        if event.type == "end":
+            self._processed_ids.discard(tracking_id)
+            return
+
+        in_zone = cfg.frigate_zone in event.current_zones
         if not in_zone:
-            # Zone'dan çıktı → tekrar girince yeni geçiş sayılabilsin
-            if event.type == "end":
-                self._processed_ids.discard(tracking_id)
             return
 
         # Zone içinde. Aynı tracking_id'nin tekrarı = heartbeat, sayma.
