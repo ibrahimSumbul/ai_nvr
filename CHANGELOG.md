@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M7 — Operasyon Runbook**
+- `docs/08-operations.md` gerçek stack'e göre yeniden yazıldı: servis tablosu (5 container + host Ollama), rutin (günlük/haftalık/aylık), Grafana panel açıklamaları, **DMSS bildirim** (e-posta/Telegram/LLM-bütçe alarmı kaldırıldı), kamera offline gerçek davranışı (CameraMonitor HTTP-poll), backup (Postgres pg_dump + named volume arşivleme + snapshot retention), restart & recovery (migrate zorunluluğu + zone/door/camera state), sorun giderme (Colima/Ollama/Dahua/Postgres + var-olmayan CLI'ler kaldırıldı). Kod değişmedi.
+
 **M7 — Kamera Offline Alarm + Grafana Paneli**
 - `bridge/cameras.py` — `CameraMonitor` offline tespitinde **Dahua external alarm** (`camera_offline` event → DMSS push, best-effort). Kamera→NVR channel `camera_channels` map'i ile (zones.yaml `dahua_channel`'dan türetilir); yoksa global `dahua_alarm_channel`. `_emit_offline_alarm` tek-uyarı (offline_alert_sent ile).
 - `bridge/main.py` — `camera_channels` map (zones_cfg'den) + `CameraMonitor`'a `dahua` + map enjekte.
