@@ -27,6 +27,7 @@ from bridge.dahua import (
     dahua_inline_worst_case_seconds,
 )
 from bridge.db import Database
+from bridge.doors import DoorStateMachine
 from bridge.events import FrigateEvent
 from bridge.llm import build_llm_client
 from bridge.mqtt import MqttClient
@@ -39,6 +40,10 @@ log = structlog.get_logger(__name__)
 
 ZONES_PATH = Path(os.environ.get("AINVR_ZONES_PATH", "/app/config/zones.yaml"))
 TICK_INTERVAL_S = 10.0
+
+# Oda (room) ve kapı (door) state machine'leri aynı arayüzü paylaşır
+# (on_event/tick/restore_from_db/zone_name) — routing tip'e göre seçer.
+StateMachine = ZoneStateMachine | DoorStateMachine
 
 
 def configure_logging(level: str) -> None:
@@ -61,11 +66,15 @@ def build_state_machines(
     db: Database,
     snapshots: SnapshotStore,
     dahua: DahuaAlarmClient | None = None,
-) -> dict[str, ZoneStateMachine]:
-    """Her zone için bir ZSM instance — `{zone_name: ZSM}`."""
-    return {
-        z.name: ZoneStateMachine(z, db, snapshots, dahua=dahua) for z in zones_cfg.zones
-    }
+) -> dict[str, StateMachine]:
+    """Her zone için state machine — tip'e göre room (ZSM) veya door (DSM)."""
+    machines: dict[str, StateMachine] = {}
+    for z in zones_cfg.zones:
+        if z.rules.type == "door":
+            machines[z.name] = DoorStateMachine(z, db, snapshots, dahua=dahua)
+        else:
+            machines[z.name] = ZoneStateMachine(z, db, snapshots, dahua=dahua)
+    return machines
 
 
 def index_by_camera(zones_cfg: ZonesConfig) -> dict[str, list[ZoneConfig]]:
@@ -147,7 +156,7 @@ async def run(settings: Settings) -> None:
 
 async def _listen_loop(
     mqtt: MqttClient,
-    state_machines: dict[str, ZoneStateMachine],
+    state_machines: dict[str, StateMachine],
     cameras_to_zones: dict[str, list[ZoneConfig]],
     truck_handler: TruckEventHandler,
     stop_event: asyncio.Event,
@@ -201,7 +210,7 @@ async def _listen_loop(
 
 
 async def _tick_loop(
-    state_machines: dict[str, ZoneStateMachine],
+    state_machines: dict[str, StateMachine],
     stop_event: asyncio.Event,
 ) -> None:
     """Her zone için periyodik exit kontrolü."""

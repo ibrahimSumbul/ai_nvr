@@ -151,17 +151,18 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 6.5: Kapı Olayları (DMSS push ile bildirim)
+## Milestone 6.5: Kapı Olayları (DMSS push ile bildirim) ✅
 
 **Hedef**: Kapılarda saniye hassasiyetinde giriş/çıkış log. Bildirim **DMSS mobil push** ile (M4 external alarm mekanizması) — ayrı e-posta/viewer altyapısı **kapsam dışı** (bkz. karar kaydı 2026-05-31).
 
-- [ ] `bridge/door.py` — kapı state machine (entry_ts, exit_ts, direction, ms hassasiyet)
-- [ ] DB tablosu `door_events` (şema M1'de hazır)
-- [ ] Kapı geçişi → Dahua external alarm (M4 `DahuaClient`) → DMSS push
-- [ ] `cam_kapi` zone'unu `type: door`'a al + traversal mantığı
-- [ ] Dedup/cooldown (her geçişte tek olay, `cooldown_seconds`)
+- [x] `bridge/doors.py` — `DoorStateMachine` (alternating in/out, ms hassasiyetli entry/exit, duration_ms)
+- [x] DB `door_events` insert/close (`insert_door_event` + `close_door_event`, şema M1'de hazır)
+- [x] Kapı geçişi → Dahua external alarm (M4 `DahuaClient`) → DMSS push (best-effort, inline retry)
+- [x] `cam_kapi` zone'u `type: door` + main.py tip-bazlı routing (room→ZSM, door→DSM)
+- [x] Dedup (heartbeat tracking_id) + cooldown (`cooldown_seconds` debounce)
+- [x] 9 unit test + gerçek-Postgres E2E (insert/close SQL, duration hesabı)
 
-**Doğrulama**: Bir kapı kameradan kişi geçer → `door_events`'e ms hassasiyetli giriş/çıkış + (NVR push kuruluysa) DMSS bildirimi.
+**Doğrulama**: ✅ E2E — iki geçiş → `door_events`'e in/close (entry_ts, exit_ts, duration_ms=8000). Yön: basit alternating; **gerçek giriş/çıkış kamera açısına bağlı, kuruluma göre değerlendirilmeli** (`doors.py` not). Gerçek DMSS push production NVR'da.
 
 > **Kapsam dışı** (kullanıcı kararı 2026-05-31): SMTP e-posta, `viewer/` FastAPI, HMAC izleme linki, reverse proxy. Mevcut güvenlik operasyonu zaten DMSS kullandığı için ayrı bildirim kanalı gereksiz. İlgili `docs/09-notifications.md` referans/opsiyonel olarak kalır.
 

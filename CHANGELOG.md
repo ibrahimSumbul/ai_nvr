@@ -7,6 +7,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M6.5 — Kapı Olayları (DMSS push)**
+- `bridge/doors.py` — `DoorStateMachine`: kapı geçişi (traversal) detektörü. **Alternating yön** modeli (1. geçiş "in"/giriş → oturum açar, 2. geçiş "out"/çıkış → kapatır + `duration_ms`). ms hassasiyetli `entry_ts`/`exit_ts`. Heartbeat dedup (tracking_id) + `cooldown_seconds` debounce. Her geçişte Dahua external alarm → DMSS push (best-effort). ⚠️ Yön varsayımı genel geçer değil — kamera açısı/kuruluma göre değerlendirilmeli (kod docstring).
+- `bridge/db.py` — `insert_door_event` (ms hassasiyetli entry, direction, tracking_id) + `close_door_event` (exit_ts + duration_ms hesabı)
+- `bridge/main.py` — tip-bazlı state machine routing: `type=room` → `ZoneStateMachine`, `type=door` → `DoorStateMachine` (ortak `StateMachine` union)
+- `bridge/config/zones.yaml` — `cam_kapi_zone` `type: door`'a alındı (cooldown + dahua_channel)
+- 9 yeni unit test (`test_doors.py`: alternating in/out/in, heartbeat dedup, cooldown, not-in-zone, low-score, dahua none/failure) + gerçek-Postgres E2E doğrulaması
+
 **Dokümantasyon — Ollama hizalama + DMSS push**
 - `README.md` + `docs/03-setup.md`: "Claude Haiku/bulut $10-25/ay" → lokal Ollama ($0, gizlilik); badge M1→M4; **çalışır kurulum** (ollama pull + `alembic upgrade head` migrate adımı + servis adresleri)
 - `docs/05-dahua-integration.md`: **DMSS mobil push konfigürasyon rehberi** (NVR external alarm→push kuralı + DMSS app abonelik adımları). Retry/test bölümleri gerçek M4 implementasyonuna hizalandı (`dahua_alarm_sent`/retry worker/claim guard; var olmayan `test-alarm` CLI kaldırıldı)
