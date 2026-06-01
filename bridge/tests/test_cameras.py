@@ -184,6 +184,22 @@ async def test_frigate_unreachable_no_marks() -> None:
     await m.close()
 
 
+async def test_camera_fps_none_treated_as_offline() -> None:
+    """camera_fps None (Frigate başlangıçta verebilir) → 0 sayılır, offline yolu."""
+    db = FakeDB()
+    clock = Clock(datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC))
+    holder = {"stats": _stats(cam_test=5.0)}
+    m = _monitor(db, holder, clock)
+
+    await m.check()  # online baseline
+    holder["stats"] = {"cameras": {"cam_test": {"camera_fps": None}}}  # None fps
+    clock.advance(70)
+    await m.check()
+
+    assert db.offline_calls == ["cam_test"]  # None → 0 → offline
+    await m.close()
+
+
 async def test_top_level_fallback_and_non_camera_keys() -> None:
     """`cameras` wrapper yoksa top-level; camera_fps'siz key'ler atlanır."""
     db = FakeDB()
