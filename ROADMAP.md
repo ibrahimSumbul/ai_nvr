@@ -174,12 +174,11 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 - [x] **Kamera offline tespit** — `bridge/cameras.py` `CameraMonitor`: Frigate `/api/stats` `camera_fps` poll, `camera_offline_threshold_s` (60s) frame yoksa `camera_status` offline + tek uyarı; recovery'de online. PR #17.
 - [x] **Kamera offline → Dahua/DMSS alarm + Grafana paneli** — offline'da external alarm (kamera→NVR channel zones.yaml'dan, best-effort) + dashboard'da "Çevrimdışı Kamera" stat + "Kamera Durumu" tablosu. PR #18.
-- [ ] Backup stratejisi (Postgres + snapshot diski)
+- [x] **Operasyon runbook** (`docs/08-operations.md`) — gerçek stack'e göre yeniden yazıldı: servisler, izleme (Grafana panelleri), DMSS bildirim, kamera offline davranışı, backup stratejisi + named volume'lar, restart & recovery (migrate + zone/door/camera), sorun giderme (Colima/Ollama/Dahua/Postgres). PR #19.
+- [x] Backup stratejisi + log rotation — runbook'ta dokümante (Postgres pg_dump cron, volume arşivleme, snapshot retention; log rotation docker json-file ile zaten sınırlı). _(Otomatik script/off-site kurulumu deploy ortamına bırakıldı.)_
 - [ ] Frigate-down alert (kamera ≠ Frigate; servis LWT `frigate/available`)
-- [ ] Disk doluluk alarmı (LLM bütçe alarmı **geçersiz** — Ollama lokal $0)
-- [ ] Log rotation (docker json-file zaten max-size/max-file ile sınırlı; runbook'a yaz)
-- [ ] Sistem restart senaryosu test
-- [ ] Operasyon runbook (`docs/08-operations.md`)
+- [ ] Disk doluluk alarmı (Grafana) — LLM bütçe alarmı **geçersiz** (Ollama lokal $0)
+- [ ] Sistem restart senaryosu **otomatik test** (recovery davranışı runbook'ta dokümante)
 
 **Doğrulama**: 1 hafta dokunmadan stabil. (Kamera offline ✅ — CameraMonitor canlı `/api/stats` + `camera_status` upsert doğrulandı, 5 kamera online.)
 
