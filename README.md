@@ -1,9 +1,9 @@
 # AI NVR — Dahua + Frigate + Ollama Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Faz: M4 tamam · M5 sürüyor](https://img.shields.io/badge/Faz-M4%20tamam%20·%20M5%20sürüyor-green.svg)](ROADMAP.md)
+[![Faz: M6.5 tamam · M7 sürüyor](https://img.shields.io/badge/Faz-M6.5%20tamam%20·%20M7%20sürüyor-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
-[![Test: 60 unit · ruff · mypy strict](https://img.shields.io/badge/Test-60%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
+[![Test: 86 unit · ruff · mypy strict](https://img.shields.io/badge/Test-86%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/commits/main)
 [![Issues](https://img.shields.io/github/issues/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/issues)
@@ -24,12 +24,12 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M1 — Docker stack iskeleti | ✅ | 5 servis, Alembic, CI |
 | M2 — Tek kamera pilot | ✅ | Zone state machine, ilk-giriş alarmı, snapshot |
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
-| M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi, `truck_events` + maliyet log |
+| M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) |
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
-| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅; 10 kamera + perf testi production |
+| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅ (10 panel); 10 kamera + perf testi production |
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
-| M6.5 — Kapı olayları (DMSS push) | ⬜ | Door state machine + DMSS mobil bildirim |
-| M7 — Operasyonel olgunluk | ⬜ | Backup, alerting, runbook |
+| M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
+| M7 — Operasyonel olgunluk | 🚧 | Kamera offline tespit + alarm + Grafana ✅, runbook ✅; backup/disk alarmı kalanı |
 
 Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 
@@ -42,7 +42,8 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 5. **Kamyon girişinde lokal Ollama** ile **çekici ve dorse rengini** + dorse tipini ayrı kaydeder (`qwen2.5vl`). Plaka okumaz. Her çağrının gecikme/başarı kaydı `llm_usage`'a yazılır.
 6. **Olayları Dahua NVR'a external alarm** olarak geri besler — orijinal DSS/SmartPSS panelinde görünür (mobil push dahil). Erişilemezse retry kuyruğu.
 7. **Grafana dashboard** — alan başına giriş, kamyon renk dağılımı, LLM gecikme/başarı, bekleyen alarm.
-8. **Kapı olayları** (M6.5 planlı) — saniye hassasiyetinde giriş/çıkış logu; bildirim **DMSS mobil push** ile (NVR external alarm üzerinden, ayrı e-posta altyapısı yok).
+8. **Kapı olayları** — ms hassasiyetinde giriş/çıkış logu (`door_events`, alternating in/out); bildirim **DMSS mobil push** ile (NVR external alarm üzerinden, ayrı e-posta altyapısı yok).
+9. **Kamera offline tespit** — `/api/stats` `camera_fps` izlenir; 60 sn frame yoksa `camera_status` offline + Dahua/DMSS alarm + Grafana paneli.
 
 ## Mimari Özet
 
