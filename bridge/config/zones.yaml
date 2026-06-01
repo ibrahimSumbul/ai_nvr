@@ -30,17 +30,19 @@ zones:
       active_hours: "00:00-23:59"
       alert_on_empty_arrival: true
 
+  # Kapı (M6.5) — her geçiş door_events'e ms hassasiyetle loglanır, her geçişte
+  # Dahua external alarm → DMSS push. Yön: basit alternating (1.giriş, 2.çıkış);
+  # gerçek yön kamera açısına bağlı, kuruluma göre değerlendirilmeli (bkz. doors.py).
   - name: cam_kapi_zone
     camera: cam_kapi
     frigate_zone: cam_kapi_zone
     rules:
       enabled: true
-      type: room  # M6.5'te 'door'a alınacak
-      first_entry_alarm: true
-      exit_timeout_seconds: 60
+      type: door
       min_person_score: 0.6
-      active_hours: "00:00-23:59"
-      alert_on_empty_arrival: true
+      cooldown_seconds: 3          # ardışık geçiş debounce
+      track_objects: ["person"]
+      dahua_channel: 1             # gerçek NVR'da kapı kamerasının alarm channel'ı
 
   - name: cam_magaza_zone
     camera: cam_magaza
