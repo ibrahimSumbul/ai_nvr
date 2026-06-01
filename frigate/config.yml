@@ -15,8 +15,8 @@ mqtt:
   enabled: true
   host: mqtt
   port: 1883
-  user: "{FRIGATE_MQTT_USER}"
-  password: "{FRIGATE_MQTT_PASSWORD}"
+  user: '{FRIGATE_MQTT_USER}'
+  password: '{FRIGATE_MQTT_PASSWORD}'
   topic_prefix: frigate
 
 # CPU detector — M6'da Coral USB'ye geçilir
@@ -24,6 +24,15 @@ detectors:
   cpu1:
     type: cpu
     num_threads: 3
+
+# Model labelmap override: Frigate default modeli COCO label 7'yi (truck)
+# varsayılan olarak "car"a remap eder (tüm büyük araçlar "car" görünür). M3 tır
+# analizi için label 7'yi "truck"a geri alıyoruz — model truck'ı zaten algılıyor,
+# sadece etiket sorunuydu (YOLO upgrade gerekmedi). SSD MobileNet truck/car ayrımı
+# sınırlıysa ileride YOLO-NAS/YOLOv9 ONNX detector değerlendirilir.
+model:
+  labelmap:
+    7: truck
 
 # Global detect default — kamera bazında override edilir
 detect:
@@ -140,3 +149,32 @@ cameras:
     zones:
       cam_yaya_zone:
         coordinates: 0,480,640,480,640,0,0,0
+
+  # M3 truck E2E test kamerası — MediaMTX cam_tir.mp4 (tır geçiş videosu).
+  # Reproduce: yt-dlp ile tır videosu indir → ffmpeg 640x480 (ORİJİNAL fps koru!
+  #   5fps Frigate watchdog'u tetikler) h264 GOP~2s → ~/Desktop/MediaMTX/videos/
+  #   cam_tir.mp4 → mediamtx-publisher restart.
+  # NOT: zone'lu bu config'de detection + truck event çalışıyor. E2E debug'ında
+  #   cam_tir zone'suz iken detection_fps=0 gözlendi; zone ekleyince başladı
+  #   (kesin neden zone mu, motion baseline oturması mı doğrulanmadı — ampirik).
+  #   Truck event'i trucks.py'de zone-bağımsız (label==truck); zone yine de
+  #   bırakıldı (diğer kameralarla tutarlı + çalışan config). labelmap 7:truck
+  #   override truck label'ının üretilmesi için kritik.
+  cam_tir:
+    ffmpeg:
+      inputs:
+        - path: rtsp://host.docker.internal:8554/cam_tir
+          roles: [detect]
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+    motion:
+      threshold: 18
+      contour_area: 10
+      improve_contrast: true
+    zones:
+      cam_tir_zone:
+        coordinates: 0,480,640,480,640,0,0,0
+version: 0.17-0
