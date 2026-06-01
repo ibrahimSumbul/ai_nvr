@@ -5,12 +5,14 @@
 | Bileşen | Spec | Not |
 |---|---|---|
 | Sunucu | Linux Ubuntu 22.04 | SnipeIT halihazırda çalışıyor |
-| RAM | 12 GB | 4 GB SnipeIT, 8 GB AI için müsait |
-| CPU | (modeli teyit edilecek) | Frigate için en az 4 core x86_64 öneri |
-| Disk | (boyutu teyit edilecek) | AI snapshot için ~50 GB yeterli |
-| Network | LAN | Dahua kameralar + NVR ile aynı erişimde |
-| GPU | Yok | PoC için gerekli değil |
-| TPU | Yok (planlı) | Coral USB sonra eklenecek |
+| RAM | 12 GB | 4 GB SnipeIT, 8 GB AI için müsait (Frigate + lokal Ollama model dahil) |
+| CPU | (modeli teyit edilecek) | Frigate için en az 4 core x86_64 öneri; lokal Ollama vision inference de CPU'da koşar |
+| Disk | (boyutu teyit edilecek) | AI snapshot için ~50 GB; ayrıca Ollama modeli `qwen2.5vl:7b` ~5.6 GB |
+| Network | LAN | Dahua kameralar + NVR ile aynı erişimde; LLM lokal olduğu için outbound internet gerekmez |
+| GPU | Yok | PoC için gerekli değil (Ollama CPU'da çalışır, yavaş ama olay-tetikli olduğu için yeterli) |
+| TPU | Yok (planlı) | Coral USB sonra eklenecek — **Frigate detection** hızlandırır, LLM'le ilgisi yok |
+
+> **LLM lokal:** Tır/dorse renk analizi host'taki **Ollama** (`qwen2.5vl:7b`) ile yapılır; container ona `host.docker.internal:11434` üzerinden erişir. Model RAM'de ~6 GB yer kaplar (yüklenince). Aylık LLM maliyeti **$0** (sadece elektrik), görüntüler tesisten çıkmaz. Detay: [`06-llm-strategy.md`](06-llm-strategy.md).
 
 ## PoC İçin Yeterli Mi?
 
@@ -30,7 +32,7 @@ CPU detector ile beklenen yük (10 kamera, 640×480 @ 5fps, YOLOv8n):
 | Coral USB Accelerator | $60 | ₺2.500–3.500 | Hepburn/Robotistan/Direnc |
 | Coral M.2 (mini PCIe) | $40 | yok/zor | İthalat gerekir |
 
-**Bütçe kararı**: **Maksimum 1 adet Coral USB ($60)**. Ek Coral alınmaz. Coral'a sığmayan kameralar Haiku ile desteklenir (aşağıdaki kapasite tablosu).
+**Donanım kararı**: **Maksimum 1 adet Coral USB ($60, opsiyonel, tek seferlik)**. Ek Coral alınmaz. Coral **yalnızca Frigate detection** içindir (LLM değil). Coral'ın detection kapasitesine sığmayan kameralar daha düşük FPS'e çekilir veya NVR-only bırakılır (aşağıdaki kapasite tablosu). Semantik analiz (tır rengi) lokal Ollama'da, olay-tetikli ve $0 marjinal maliyetle koşar.
 
 ### Coral USB Kapasitesi (Gerçekçi)
 
@@ -43,11 +45,11 @@ Tek Coral USB, Edge TPU üzerinde **~100 inference/saniye** yapar. Kamera başı
 | 3 fps | 20–25 | Reaksiyon gecikir |
 | 2 fps | 30+ | Sadece olay tetikçi |
 
-> **Karar**: 5 fps'te **15 kamera Coral üzerinde**, geri kalanlar motion-triggered Haiku ile çalışır.
+> **Karar**: 5 fps'te **15 kamera Coral üzerinde** detection yapılır; geri kalan kameralar ya düşük FPS'te CPU detector'da kalır ya da NVR-only bırakılır. Tespit edilen kamyonlar (hangi kamerada olursa olsun) lokal Ollama'ya gider.
 
 ### İki Fazlı Plan
 
-**Faz 1 — PoC (8 GB RAM, Coral yok, $10/ay Haiku bütçesi)**
+**Faz 1 — PoC (8 GB RAM, Coral yok, lokal Ollama $0)**
 
 | Grup | Kamera | Mekanizma |
 |---|---|---|
@@ -55,28 +57,28 @@ Tek Coral USB, Edge TPU üzerinde **~100 inference/saniye** yapar. Kamera başı
 | B: Pilot kapı | 1 | Frigate CPU + door traversal |
 | Diğer 97 | – | Sadece NVR kaydı, AI yok |
 
-CPU-only Frigate ~3 kamerayı düşük FPS'te kaldırır. Pilot için yeterli.
+CPU-only Frigate ~3 kamerayı düşük FPS'te kaldırır. Pilot için yeterli. Kamyon görülürse lokal Ollama tır rengini analiz eder (olay-tetikli, $0).
 
-**Faz 2 — Production (Coral USB + $25/ay Haiku bütçesi)**
+**Faz 2 — Production (opsiyonel Coral USB + lokal Ollama $0)**
 
-| Grup | Kamera | Mekanizma | Maliyet |
+| Grup | Kamera | Mekanizma | LLM maliyeti |
 |---|---|---|---|
-| **A**: Aktif izlenen alanlar (oda) | 10 | Frigate + Coral (state machine) | TPU |
-| **B**: Kapılar (alarm + giriş/çıkış log) | 5 | Frigate + Coral (door traversal) | TPU |
-| **C**: Düşük öncelik (motion → Haiku) | 10–12 | ffmpeg motion + Haiku snapshot | LLM |
+| **A**: Aktif izlenen alanlar (oda) | 10 | Frigate + Coral (state machine) | $0 (olay-tetikli Ollama) |
+| **B**: Kapılar (alarm + giriş/çıkış log) | 5 | Frigate + Coral (door traversal) | $0 (olay-tetikli Ollama) |
+| **C**: Düşük öncelik (motion enrichment) | 10–12 | ffmpeg motion + lokal Ollama snapshot | $0 (lokal) |
 | **D**: Sadece NVR kaydı | 73–75 | NVR kayıt, AI yok | $0 |
 | **Toplam** | **100** | | |
 
-Grup A+B: **15 kamera Coral'da**, kapasiteye sığar.
-Grup C boyutu **$25 Haiku bütçesine** göre kalibre edilir (motion sıklığına bağlı, 10–12 arası). Bkz. [`07-cost-analysis.md`](07-cost-analysis.md).
+Grup A+B: **15 kamera Coral'da** detection, kapasiteye sığar.
+Grup C boyutu artık **bulut bütçesiyle değil, host'un Ollama inference kapasitesiyle** sınırlıdır (lokal LLM maliyeti $0; sınır CPU/RAM ve eşzamanlı çağrı kuyruğu). Bkz. [`07-cost-analysis.md`](07-cost-analysis.md).
 
 > Tüm kameralar AI sunucudan **direct** erişilebilir olmak zorunda. NVR'a ek yük binmez. Bkz. [`05-dahua-integration.md`](05-dahua-integration.md).
 
 ## Maks. Kapasite ve Trade-off'lar
 
-"Coral'ı ve $25 Haiku bütçesini sonuna kadar zorlarsak kaç kamera AI'a alınabilir?" sorusunun cevabı. Üç darboğaz vardır; en sıkı olan kazanır.
+"Coral'ı ve mevcut sunucuyu sonuna kadar zorlarsak kaç kamera AI'a alınabilir?" sorusunun cevabı. Lokal Ollama'da **bulut bütçesi darboğazı yoktur** (maliyet $0); yerine **Ollama inference kapasitesi** darboğaz olur. Üç darboğaz vardır; en sıkı olan kazanır.
 
-### Darboğaz 1: Coral USB
+### Darboğaz 1: Coral USB (Frigate detection)
 
 ~100 inference/saniye yapar. FPS düştükçe daha çok kamera, ama reaksiyon hızı düşer.
 
@@ -88,35 +90,40 @@ Grup C boyutu **$25 Haiku bütçesine** göre kalibre edilir (motion sıklığı
 | 2 fps | 30 | 500 ms | Hızlı kişi/araç kaçabilir |
 | 1 fps | 50+ | 1 sn | State machine kullanılamaz |
 
-### Darboğaz 2: Haiku Bütçesi ($25/ay Production)
+### Darboğaz 2: Lokal Ollama Inference Kapasitesi
 
-$6,66'sı Grup A+B enrichment için ayrılır → **$18,34** Grup C'ye kalır.
+LLM maliyeti $0 olduğu için **kamera sayısını para sınırlamaz**; sınır, host'un kaç **eşzamanlı / saatte kaç** vision çağrısını işleyebildiğidir. `qwen2.5vl:7b` GPU'suz CPU'da bir çağrıyı **saniyeler** mertebesinde işler (soğuk/büyük görüntüde `.env` timeout'u 90s'e kadar tanır). Çağrılar Ollama'da sıraya girer; aynı anda çok sayıda kamyon analizi gelirse kuyruk birikir.
 
-| Motion/cam/gün | Cam başı $/ay | Maks Grup C kamera |
+Pratik etki: LLM **olay-tetikli** (kamyon görülünce) olduğu için, tipik bir tesiste günde onlarca-yüzlerce çağrı host için sorun değildir. Darboğaz ancak **çok yoğun, sürekli kamyon trafiğinde** veya Grup C motion-enrichment'ı agresif açılırsa devreye girer.
+
+| Senaryo | Lokal Ollama yükü | Önlem |
 |---|---|---|
-| 10 (çok sakin) | $0,36 | 50+ |
-| 20 (sakin) | $0,72 | **25** |
-| 30 (orta) | $1,08 | **17** |
-| 50 (aktif) | $1,80 | 10 |
-| 100 (çok aktif) | $3,60 | 5 |
+| Kamyon girişleri (Grup A+B, olay-tetikli) | Düşük (gün içine yayılır) | Yeterli — varsayılan |
+| Grup C motion enrichment, sakin alanlar | Orta | `min_score` + `active_hours` ile sınırla |
+| Çok yoğun trafik / agresif motion | Kuyruk birikir, gecikme artar | FPS düşür, GPU ekle, veya çağrı sıklığını kıs |
+
+> GPU eklenirse (RTX sınıfı) inference saniyeden milisaniyeye düşer ve bu darboğaz büyük ölçüde kalkar. PoC/Production'da CPU yeterli kabul edildi (olay-tetikli kullanım).
 
 ### Darboğaz 3: 8 GB RAM + CPU
 
 - Frigate per-kamera: ~100–150 MB RAM
 - ffmpeg decode per-kamera: ~2–5% CPU (Coral varsa bile decode CPU'da)
-- 8 GB - (Postgres 500MB + Frigate base 500MB + bridge 300MB) = **~6.5 GB**
-- 6.5 GB / 150 MB = **~40 kamera RAM tavanı**
-- 4-core CPU: ~25–30 kamera CPU decode tavanı
+- **Lokal Ollama modeli host RAM'de ~6 GB** (`qwen2.5vl:7b` yüklenince) — bu, container'lardan ayrı host belleğindedir; AI sunucusunun toplam RAM planına dahil edilmeli
+- Container tarafı: 8 GB - (Postgres 500MB + Frigate base 500MB + bridge 300MB) = **~6.5 GB**
+- 6.5 GB / 150 MB = **~40 kamera RAM tavanı** (Frigate decode için)
+- 4-core CPU: ~25–30 kamera CPU decode tavanı; Ollama inference CPU'yu paylaşır, ağır çağrı sırasında detection'ı yavaşlatabilir
 - 8-core CPU: ~50+ kamera
 
 ### Birleşik Senaryolar
 
-| Konfig | Coral | Haiku C | **Toplam** | Trade-off |
+| Konfig | Coral (detect) | Grup C (lokal Ollama enrich) | **Toplam** | Trade-off |
 |---|---|---|---|---|
 | **Kaliteli** (5 fps, motion orta) | 15 | 12 | **~27** | Önerilen — reaksiyon iyi, kayıp az |
 | **Sıkıştırılmış** (3 fps, motion kalibre) | 22 | 15 | **~37** | Kapı saniye hassasiyeti azalır |
-| **Maks. teorik** (2 fps, threshold yüksek) | 30 | 17 | **~47** | Hızlı olay kaçabilir, CPU sınırı |
+| **Maks. teorik** (2 fps, threshold yüksek) | 30 | 17 | **~47** | Hızlı olay kaçabilir, CPU + Ollama kuyruğu sınırı |
 | **Çok sakin alanlar** (1 fps, motion <10/gün) | 25 | 30+ | **~55** | State machine yok, sadece olay log |
+
+> Grup C sütunundaki sayılar artık para bütçesiyle değil, **CPU decode + Ollama kuyruğu** ile sınırlıdır. Lokal LLM maliyeti her senaryoda $0'dır.
 
 ### Sonuç
 
@@ -124,11 +131,11 @@ $6,66'sı Grup A+B enrichment için ayrılır → **$18,34** Grup C'ye kalır.
 - **Rıza ile sıkıştırılırsa**: ~35–40 kamera (sıkıştırılmış)
 - **Teorik maks**: ~45–50 kamera (kalite düşer)
 
-100 kameranın **~%30–40'ı** AI kapsamında olabilir, geri kalanı NVR-only.
+100 kameranın **~%30–40'ı** AI kapsamında olabilir, geri kalanı NVR-only. Sınırlayan faktör artık LLM maliyeti değil, **detection donanımı (CPU/Coral) ve lokal inference kapasitesidir**.
 
 ### Pratik Tavsiye
 
-Başlangıç hedefi (10 oda + 5 kapı + 10 Grup C = 25 kamera) bu kapasitenin **rahat altındadır**. Sahaya çıkıldıkça Grup C'ye 5'er kamera ekle, $25 bütçe alarmı uyarı verene kadar büyüt.
+Başlangıç hedefi (10 oda + 5 kapı + 10 Grup C = 25 kamera) bu kapasitenin **rahat altındadır**. Sahaya çıkıldıkça Grup C'ye 5'er kamera ekle; Ollama gecikmesi (Grafana **AI NVR — Genel Bakış** dashboard'unda `llm_usage` latency) belirgin artana kadar büyüt.
 
 ### Coral USB'nin sağladığı
 
@@ -162,13 +169,14 @@ detectors:
 
 ## Üretim Donanım Hedefi (12 ay sonra)
 
-**Bütçe sabitlendi**: ek donanım alınmaz. Kapsam genişlerse Haiku üzerinden ölçeklenir (maliyeti çok küçük artar).
+**Donanım sabitlendi**: PoC/Production için ek donanım zorunlu değil (Ollama CPU'da çalışır, LLM maliyeti $0). Kapsam genişlerse darboğaz para değil, **detection + lokal inference kapasitesidir**; çözüm donanım eklemektir.
 
 İleride donanım yatırımı yapılacaksa:
 
 | Senaryo | Donanım |
 |---|---|
-| 20+ aktif izleme alanı | + 2. Coral USB veya RTX 4060 8GB |
+| 20+ aktif izleme alanı (detection) | + 2. Coral USB veya RTX 4060 8GB |
+| Lokal LLM gecikmesi yüksek / çağrı yoğunsa | + GPU (RTX sınıfı) — Ollama inference saniyeden milisaniyeye iner |
 | Yüz tanıma eklenirse | + RTX 3060 12GB (CompreFace için) |
 | Davranış analizi eklenirse | + RTX 4060 Ti 16GB |
 
@@ -186,7 +194,8 @@ detectors:
 
 ## Ağ Gereksinimleri
 
-- Outbound 443 (Anthropic API)
+- **Outbound internet LLM için gerekmez** — Ollama lokal host'ta çalışır, görüntüler tesisten çıkmaz (gizlilik). (Model ilk indirme `ollama pull` dışında.)
 - Kamera VLAN'ına Frigate erişimi
 - NVR'a HTTP/HTTPS erişimi (alarm push)
-- Internet bant genişliği: Haiku çağrıları küçük (her biri ~50 KB), 100 çağrı/saat = ~5 MB/saat. Sıkıntı yok.
+- Bridge → Ollama: host içi `host.docker.internal:11434` (LAN dışına çıkmaz)
+- _(Planlı)_ Anthropic bulut hibrit eklenirse outbound 443 gerekir; çağrılar küçük (~50 KB) olduğu için bant genişliği sorun olmaz. Şu an yalnızca `ollama` destekleniyor.

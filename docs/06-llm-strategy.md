@@ -1,77 +1,86 @@
 # 06 — LLM Stratejisi
 
+> **M3'te uygulandı (lokal Ollama).** Bu doküman gerçek koda (`bridge/bridge/llm.py`) göre hizalanmıştır: provider **lokal Ollama** (`qwen2.5vl:7b`), `POST /api/generate` + `format=json` structured output. Aylık maliyet **$0** (sadece elektrik), görüntüler tesisten çıkmaz. Bulut hibrit (Anthropic) **planlıdır** — `LLM_PROVIDER` switch + factory hazır, ama `AnthropicClient` henüz yazılmadı; `build_llm_client` `ollama` dışında provider'a `ValueError` verir.
+
 ## Genel Felsefe
 
-LLM **ucuz değil, sadece doğru yerde kullanılırsa ucuzdur.** Bu projede LLM şu işler için kullanılır:
+LLM **doğru yerde kullanılırsa değerlidir.** Lokal Ollama'da çağrı başına para maliyeti yoktur ($0), ama her çağrı CPU/inference zamanı tüketir; bu yüzden LLM yine **sadece** şu işler için, **olay-tetikli** çağrılır:
 
-1. **Tır + dorse renk ayrımı** (Frigate yapamaz)
-2. **Anomali doğrulama** (örn. "bu kişi düşmüş mü?")
-3. **Yetkisiz alan ihlali doğrulaması** (M8'de, yüz tanıma ekledikten sonra)
+1. **Tır + dorse renk ayrımı** (Frigate yapamaz) — M3'te aktif
+2. **Anomali doğrulama** (örn. "bu kişi düşmüş mü?") — planlı
+3. **Yetkisiz alan ihlali doğrulaması** (M8'de, yüz tanıma ekledikten sonra) — planlı
 
-Frigate'in yapabildiği işler için **asla** LLM çağrılmaz: kişi tespiti, araç tespiti, basit hareket.
+Frigate'in yapabildiği işler için **asla** LLM çağrılmaz: kişi tespiti, araç tespiti, basit hareket. Ayrıca Frigate truck label skoru `LLM_TRUCK_MIN_SCORE` (varsayılan 0.6) altındaysa LLM hiç çağrılmaz.
 
 ## Model Seçimi
 
-**Claude Haiku 4.5** (`claude-haiku-4-5-20251001`)
+**Lokal Ollama vision modeli — `qwen2.5vl:7b`** (`.env` `LLM_OLLAMA_MODEL` ile değiştirilebilir)
 
 | Neden | Detay |
 |---|---|
-| Ucuz | $0,80/M input, $4/M output |
-| Hızlı | ~1–2 saniye yanıt |
-| Vizyon destekler | Görüntü tabanlı analiz |
-| Yapısal çıktı iyi | JSON döndürme güvenilir |
-| Anthropic SDK | Prompt caching desteği var |
+| Maliyet $0 | Lokal inference, token ücreti yok — sadece elektrik |
+| Gizlilik | Görüntüler host'tan/tesisten çıkmaz (KVKK/GDPR dostu) |
+| Vizyon destekler | Görüntü tabanlı analiz (vision-language model) |
+| Yapısal çıktı | Ollama `format=json` ile JSON döndürme güvenilir |
+| Kota yok | API rate-limit yok; sınır yalnızca host inference kapasitesi |
 
-Alternatifler değerlendirildi:
-- **Gemini 2.5 Flash**: ~3× daha ucuz, ama Anthropic SDK altyapısına bağlanmak istiyoruz, vendor-neutrality şimdilik öncelik değil
-- **Sonnet 4.6**: 4× pahalı, gerek yok
-- **GPT-4o-mini**: alternatif, port edilebilir mimari isteniyorsa
+Trade-off: GPU'suz CPU inference **yavaştır** (saniyeler; `LLM_TIMEOUT_S` varsayılan 90s soğuk/büyük görüntü için marj). Olay-tetikli kullanımda kabul edilebilir.
 
-## Prompt Caching
+Alternatifler / **planlı** bulut hibrit:
+- **Anthropic Claude (Haiku sınıfı)**: bulut, hızlı, güçlü vizyon — ama token maliyeti + görüntü dışarı çıkar + kota. `LLM_PROVIDER=anthropic` switch'i ve `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` ayarları kodda **rezerve** ama `AnthropicClient` henüz yok (planlı fallback).
+- Daha büyük lokal model (örn. `qwen2.5vl:32b`) kalite için, ama daha çok RAM/VRAM ister.
 
-Her LLM çağrısında sistem prompt'unu cache'leyeceğiz:
+## Ollama Çağrı Mekaniği (gerçek)
+
+Bridge Anthropic SDK kullanmaz; doğrudan Ollama HTTP API'ye gider (`OllamaClient`, `httpx.AsyncClient`). Anthropic'e özgü prompt caching (`cache_control`) **yoktur**; Ollama modeli bellekte tuttuğu için (`keep_alive`) tekrar çağrılar zaten hızlanır.
 
 ```python
-messages = [{
-    "role": "user",
-    "content": [
-        {
-            "type": "text",
-            "text": SYSTEM_PROMPT,
-            "cache_control": {"type": "ephemeral"}
-        },
-        {"type": "image", "source": {...}},
-        {"type": "text", "text": user_question},
-    ]
-}]
+# bridge/bridge/llm.py — OllamaClient.analyze_truck (özet)
+payload = {
+    "model": settings.llm_ollama_model,          # qwen2.5vl:7b
+    "prompt": "Bu kamyonu analiz et ve JSON döndür.",
+    "system": TRUCK_PROMPT_SYSTEM,                 # aşağıdaki sistem prompt
+    "images": [image_b64],                         # snapshot, ≤480px downscale
+    "format": "json",                              # structured JSON output
+    "stream": False,
+    "options": {
+        "temperature": 0.1,                        # düşük → tutarlı sonuç
+        "num_predict": 256,                        # JSON kısa; latency'yi sınırlar
+    },
+}
+# POST /api/generate → response.json()["response"] → TruckAnalysis.model_validate_json(...)
 ```
-
-Cache hit oranı %80+ olur (sistem prompt sabit), input maliyetini %90 azaltır.
 
 ## Prompt 1: Tır + Dorse Renk Analizi
 
-### Sistem Prompt (cached)
+### Sistem Prompt (`TRUCK_PROMPT_SYSTEM`, gerçek)
+
+Aşağıdaki, `bridge/bridge/llm.py` içindeki gerçek sistem prompt'tur. Renk seçimini zorunlu kılan ve "bilinmeyen"i sınırlayan kurallar M3 kalite tuning'i (renk prompt fix) ile eklendi:
 
 ```text
-Sen bir araç görüntü analiz asistanısın. Sana endüstriyel tesise giren bir kamyonun
-görüntüsü verilecek. Aşağıdakileri tespit edip JSON döndüreceksin.
+Sen bir araç görüntü analiz asistanısın. Sana endüstriyel tesise giren bir kamyonun görüntüsü verilecek. Aşağıdakileri tespit edip JSON döndüreceksin.
 
 ÖNEMLİ:
 - Sadece JSON döndür, başka açıklama yapma.
 - Plaka okumaya çalışma, sadece renk ve genel bilgi.
-- Emin değilsen guven düşür.
-- Renk için temel renk listesi: beyaz, siyah, gri, kirmizi, mavi, yesil, sari,
-  turuncu, kahverengi, mor, pembe, lacivert, krem, bordo, metalik
+- RENK ZORUNLU: çekici/dorse rengini gördüğün baskın renge göre MUTLAKA listeden seç.
+  Gümüş veya parlak gri araçlar → "metalik" (mat gri ise "gri").
+  Açık/kirli beyaz → "beyaz". Koyu lacivert/siyah ayrımında emin değilsen "siyah".
+- "bilinmeyen" rengi SADECE araç gölgede/bulanık olup renk gerçekten seçilemiyorsa kullan.
+  Rengi görebiliyorsan "bilinmeyen" DEME — en yakın rengi seç ve "guven"i ona göre ayarla.
+- "guven": tahminin netliği (0.0-1.0). Renk nettse yüksek, belirsizse düşük.
+- "notlar": KISA tut, en fazla 1 kısa cümle (uzun metin çıktıyı bozar).
+- Renk listesi: beyaz, siyah, gri, kirmizi, mavi, yesil, sari, turuncu, kahverengi, mor, pembe, lacivert, krem, bordo, metalik, bilinmeyen
 
-Cevap şeması:
+Şema:
 {
   "tir_var_mi": boolean,
-  "cekici_rengi": string | null,
+  "cekici_rengi": <renk> | null,
   "dorse_var_mi": boolean,
-  "dorse_rengi": string | null,
+  "dorse_rengi": <renk> | null,
   "dorse_tipi": "tenteli" | "frigo" | "konteyner" | "acik" | "tanker" | "bilinmeyen" | null,
-  "yon": "giris" | "cikis" | "duruyor" | null,
-  "guven": float (0.0 - 1.0),
+  "yon": "giris" | "cikis" | "duruyor" | "bilinmeyen" | null,
+  "guven": float (0.0-1.0),
   "notlar": string | null
 }
 ```
@@ -79,29 +88,39 @@ Cevap şeması:
 ### Kullanıcı mesajı
 
 ```text
-[image]
-Bu kamyonu analiz et.
+[image]  (snapshot, server-side ≤480px downscale)
+Bu kamyonu analiz et ve JSON döndür.
 ```
 
-### Çıktı doğrulama (Pydantic)
+### Çıktı doğrulama (Pydantic — gerçek `TruckAnalysis`)
+
+Renk ve dorse tipi serbest string değil, **Literal enum**'dur; Ollama listede olmayan bir değer döndürürse `model_validate_json` başarısız olur ve retry tetiklenir.
 
 ```python
+Color = Literal[
+    "beyaz", "siyah", "gri", "kirmizi", "mavi", "yesil", "sari", "turuncu",
+    "kahverengi", "mor", "pembe", "lacivert", "krem", "bordo", "metalik", "bilinmeyen",
+]
+TrailerType = Literal["tenteli", "frigo", "konteyner", "acik", "tanker", "bilinmeyen"]
+Direction = Literal["giris", "cikis", "duruyor", "bilinmeyen"]
+
 class TruckAnalysis(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     tir_var_mi: bool
-    cekici_rengi: Optional[Color]
+    cekici_rengi: Color | None = None
     dorse_var_mi: bool
-    dorse_rengi: Optional[Color]
-    dorse_tipi: Optional[TrailerType]
-    yon: Optional[Direction]
+    dorse_rengi: Color | None = None
+    dorse_tipi: TrailerType | None = None
+    yon: Direction | None = None
     guven: float = Field(ge=0.0, le=1.0)
-    notlar: Optional[str]
+    notlar: str | None = None
 ```
 
-`guven < 0.5` ise → sonucu DB'ye `low_confidence=true` flag'i ile yaz, alarm üretme ama insan incelemesi için işaretle.
+> Düşük `guven`li sonuçlar DB'ye yine yazılır (event log her zaman insert edilir); operasyonel tarafta düşük güven Grafana'dan izlenebilir.
 
-## Prompt 2: Anomali Doğrulama
+## Prompt 2: Anomali Doğrulama (planlı)
 
-Frigate "person" tespit etti, hareket pattern'i şüpheli (örn. çok hızlı düşüş, çok uzun süre sabit duruş). Bridge bunu opsiyonel olarak Haiku'ya doğrulatır.
+Frigate "person" tespit etti, hareket pattern'i şüpheli (örn. çok hızlı düşüş, çok uzun süre sabit duruş). Bridge bunu opsiyonel olarak lokal Ollama'ya doğrulatır (M3'te uygulanmadı; planlı).
 
 ```text
 [image]
@@ -118,74 +137,64 @@ JSON döndür: {
 
 > M3 milestone'da bu pasif (sadece log). M7'de Dahua alarm tetiklenmeye başlar.
 
-## Maliyet Kontrolü
+## Maliyet ve Gecikme Kontrolü (Lokal Ollama)
 
-### Per-çağrı maliyet hesabı
+### Per-çağrı
 
-| Bileşen | Token | Maliyet ($) |
-|---|---|---|
-| System prompt (cached) | 400 | 0,80 × 0,1 / 1000 = 0,00003 |
-| Görüntü (640×480) | ~400 | 400 × 0,80/1M = 0,00032 |
-| User msg | 50 | 0,00004 |
-| Output JSON | 200 | 200 × 4/1M = 0,0008 |
-| **Toplam per çağrı** | | **~$0,0012** |
+Lokal Ollama'da çağrı başına **para maliyeti $0**'dır; ölçülen büyüklük token-doları değil **gecikme**dir. Bridge yine de token sayımını ve gecikmeyi `llm_usage`'a yazar (`cost_usd` Ollama'da 0).
 
-### Aylık tahmin (sizin senaryo)
-
-| Olay | Çağrı/ay | Maliyet |
-|---|---|---|
-| Tır renk (20/gün × 30) | 600 | $0,72 |
-| Anomali doğrulama | 300 | $0,36 |
-| Yetkisiz alan (M8+) | 150 | $0,18 |
-| **Toplam aylık** | **~1.050** | **~$1,26** |
-
-### Bütçe Guard (Sabit)
-
-| Faz | Bütçe | Uyarı | Disable |
+| Bileşen | Token (tahmini) | Para | Not |
 |---|---|---|---|
-| PoC | $10/ay | $8 | $10 |
-| Production | $25/ay | $20 | $25 |
+| Sistem prompt (`TRUCK_PROMPT_SYSTEM`) | ~400 | $0 | Her çağrıda `system` alanında |
+| Görüntü (snapshot, ≤480px) | ~300–500 | $0 | `LLM_SNAPSHOT_MAX_HEIGHT=480` |
+| User msg | ~10 | $0 | "Bu kamyonu analiz et ve JSON döndür." |
+| Output JSON | ≤256 | $0 | `num_predict=256` |
+| **Per çağrı** | | **$0** | Gecikme: CPU'da saniyeler |
 
-Bridge'de:
+### Aylık tahmin
 
-```python
-LLM_MONTHLY_BUDGET_USD = float(os.environ["LLM_MONTHLY_BUDGET_USD"])  # 10 veya 25
+| Olay | Çağrı/ay | Para |
+|---|---|---|
+| Tır renk (20/gün × 30) | 600 | $0 |
+| Anomali doğrulama (planlı) | 300 | $0 |
+| Yetkisiz alan (M8+, planlı) | 150 | $0 |
+| **Toplam aylık** | **~1.050** | **$0** |
 
-async def check_budget():
-    used = await db.sum_llm_cost_this_month()
-    if used > LLM_MONTHLY_BUDGET_USD * 0.8:
-        await alert(f"LLM bütçesinin %80'i tüketildi: ${used:.2f}/${LLM_MONTHLY_BUDGET_USD}")
-    if used > LLM_MONTHLY_BUDGET_USD:
-        await alert(f"LLM bütçesi aşıldı (${used:.2f}), çağrılar durduruluyor")
-        return False
-    return True
-```
+### Çağrı Sıklığı Kontrolü (para değil, kuyruk)
 
-`llm_usage` tablosu:
+Lokal Ollama'da bütçe-kesme yerine **gereksiz çağrıyı önlemek** asıl mekanizmadır:
+- `LLM_TRUCK_MIN_SCORE` (varsayılan 0.6): Frigate truck skoru bunun altındaysa LLM hiç çağrılmaz.
+- `LLM_SNAPSHOT_MAX_HEIGHT` (480): büyük kaynak görüntüde latency'yi sınırlar.
+- Aynı olay için tekrar analiz yapılmaz (idempotent truck event akışı).
+
+> `.env` `LLM_MONTHLY_BUDGET_USD` ayarı kodda durur ama yalnızca **planlı** Anthropic hibriti içindir; lokal Ollama'da $0 olduğu için bir bütçe-kesme tetiklenmez.
+
+`llm_usage` tablosu (token + gecikme metadata'sı; `cost_usd` Ollama'da 0):
 
 ```sql
 CREATE TABLE llm_usage (
   id BIGSERIAL PRIMARY KEY,
   ts TIMESTAMPTZ NOT NULL,
   call_type TEXT,           -- 'truck_color' | 'anomaly' | ...
-  model TEXT,
-  input_tokens INT,
-  output_tokens INT,
-  cached_tokens INT,
-  cost_usd NUMERIC(10,6),
+  model TEXT,               -- 'qwen2.5vl:7b'
+  input_tokens INT,         -- Ollama prompt_eval_count
+  output_tokens INT,        -- Ollama eval_count
+  cached_tokens INT,        -- Ollama'da 0
+  cost_usd NUMERIC(10,6),   -- Ollama'da 0 (electric)
   latency_ms INT,
   success BOOLEAN,
   error TEXT
 );
 ```
 
-## Hata ve Retry
+## Hata ve Retry (gerçek)
 
-- Timeout: 30 saniye
-- Retry: 2 deneme (Anthropic SDK kendi yapar)
-- Network hatası: bridge yerel kuyrukta tutar, max 1 saat retry
-- API hatası (4xx): log + ölü mektup, retry yok
-- 529 (overloaded): exponential backoff
+`OllamaClient` kendi retry'ını yapar (Anthropic SDK yok):
+
+- **Timeout**: `LLM_TIMEOUT_S` varsayılan **90 sn** (CPU inference + vision encode soğukta uzayabilir; GPU/Coral sonrası düşürülebilir).
+- **Retry**: `LLM_MAX_RETRIES` varsayılan **2** ek deneme. `httpx.HTTPError` veya JSON parse (`ValueError`) yakalanır, `llm.attempt_failed` log'lanır.
+- Tüm denemeler başarısızsa `LLMError` fırlatılır; tır analizi atlanır ama **zone olayı/alarm yine işlenir** (LLM kritik yol değil).
+- Ollama host'ta kapalıysa: bağlantı hatası → retry → `LLMError`. Host'ta `ollama serve` ve model yüklü olmalı.
 
 ## Test Set
 
@@ -200,6 +209,7 @@ Beklenen başarı: %90+ doğru renk ataması.
 
 ## İleride
 
-- **Local LLM fallback**: LM Studio + Qwen2.5-VL 7B → toplam offline çalışma (gerektiğinde)
-- **Batch API**: Anthropic Batch API ile %50 indirim (gerçek-zamansız olaylar için)
-- **Embedding tabanlı snapshot araması**: "kırmızı dorseli tırları göster" gibi
+- **Bulut hibrit (planlı)**: `LLM_PROVIDER=anthropic` + `AnthropicClient` — lokal Ollama yetmediğinde (örn. çok zor görüntü, daha yüksek kalite ihtiyacı) bulut fallback. Switch + factory + `ANTHROPIC_*` ayarları hazır, implementasyon henüz yok.
+- **Daha büyük lokal model**: kalite için `qwen2.5vl:32b` gibi (daha çok RAM/VRAM gerektirir); GPU ile gecikme de düşer.
+- **Anomali doğrulama (Prompt 2)**: M3'te uygulanmadı, ilerideki milestone'da lokal Ollama ile aktive.
+- **Embedding tabanlı snapshot araması**: "kırmızı dorseli tırları göster" gibi.

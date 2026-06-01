@@ -104,7 +104,7 @@ zones:
     rules:
       enabled: true
       track_objects: [truck, car]
-      truck_color_analysis: true    # Haiku ile renk
+      truck_color_analysis: true    # lokal Ollama ile renk
       first_entry_alarm: true
 
   # Kapı: oda mantığından farklı, her geçişte alarm
