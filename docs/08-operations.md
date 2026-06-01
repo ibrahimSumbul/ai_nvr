@@ -1,213 +1,212 @@
-# 08 — İşletim
+# 08 — İşletim (Operasyon Runbook)
 
-Sistem unutulup ayda 5 dakika bakılacak şekilde tasarlanır. Bu doküman onu mümkün kılan rutinleri yazar.
+Sistem unutulup ayda birkaç dakika bakılacak şekilde tasarlanır. Bu doküman onu mümkün kılan rutinleri, izleme ve sorun giderme adımlarını gerçek stack'e göre yazar.
 
-## Günlük
+## Servisler
 
-- Bakılması gereken bir şey yok. Grafana'da kırmızı çubuk varsa açıp bak.
+| Servis | Container | Rol |
+|---|---|---|
+| Frigate | `ainvr-frigate` | RTSP detect (CPU/Coral), MQTT event + snapshot |
+| Bridge | `ainvr-bridge` | zone/door state machine, Ollama tır analizi, Dahua alarm, kamera izleme |
+| PostgreSQL | `ainvr-postgres` | olay + log (`zone_events`, `door_events`, `truck_events`, `llm_usage`, `camera_status`) |
+| Mosquitto | `ainvr-mqtt` | MQTT broker (Frigate → Bridge) |
+| Grafana | `ainvr-grafana` | dashboard (`AI NVR — Genel Bakış`) |
+| Ollama | **host** (container değil) | lokal vision LLM (`qwen2.5vl:7b`), bridge `host.docker.internal:11434`'e erişir |
 
-## Haftalık
+Sağlık: `docker compose ps` → 5 container `healthy`. Ollama: `curl -s http://localhost:11434/api/tags`.
 
-- [ ] Grafana "AI NVR Overview" dashboard kontrol
-  - Alan giriş trend'i normal mi?
-  - LLM çağrı sayısı bütçe içinde mi?
-  - Yanlış pozitif şüphesi var mı?
-- [ ] Disk doluluk: `df -h /var/lib/docker`
-- [ ] Postgres `zone_events` boyutu
+## Rutin
 
-## Aylık
+**Günlük** — bakılması gereken bir şey yok. Grafana'da "Çevrimdışı Kamera" stat'ı kırmızıysa ([İzleme](#izleme)) bak.
 
-- [ ] LLM toplam maliyetini gözden geçir
-- [ ] Frigate kalibrasyonu (gerekirse `min_score` ayarı)
-- [ ] DB backup doğrulaması
-- [ ] Docker image güncellemeleri:
-  ```bash
-  docker compose pull
-  docker compose up -d
-  ```
+**Haftalık**
+- [ ] Grafana **AI NVR — Genel Bakış**: alan giriş trendi normal mi, LLM başarı oranı yüksek mi, bekleyen Dahua alarm 0 mı, çevrimdışı kamera var mı
+- [ ] Disk: `df -h /var/lib/docker`
+- [ ] Snapshot disk: `du -sh /var/lib/ainvr/snapshots`
+
+**Aylık**
+- [ ] Frigate kalibrasyonu (gerekirse `min_score`/`threshold`)
+- [ ] DB backup doğrulaması (restore testi)
+- [ ] Image güncellemeleri: `docker compose pull && docker compose up -d`
+
+> **LLM maliyeti** izlenmez — Ollama lokal, marjinal maliyet $0. İzlenen metrik LLM **gecikme/başarı oranı** (Grafana). Donanım yetmiyorsa Coral USB (M6).
 
 ## İzleme
 
-### Grafana Dashboard'ları
+### Grafana — AI NVR — Genel Bakış
 
-| Dashboard | İçerik |
+`http://<sunucu>:3000` (admin / `GRAFANA_ADMIN_PASSWORD`). Dashboard otomatik provision edilir (datasource + paneller). Paneller:
+
+| Panel | Anlam |
 |---|---|
-| AI NVR Overview | Olay sayısı, alan başına aktivite, LLM maliyet |
-| Frigate Performance | CPU/RAM, FPS, detection latency |
-| LLM Usage | Çağrı tipleri, başarı oranı, cache hit, günlük maliyet |
-| Errors | Bridge hata logları, Dahua alarm fail, retry kuyruk |
+| İlk Giriş (24s) | Son 24 saatteki zone `first_entry` sayısı |
+| Kamyon Olayı | Toplam `truck_events` |
+| LLM Başarı Oranı | Ollama çağrı başarı % |
+| Dahua Alarm — Bekleyen | Gönderilememiş (pending) alarm sayısı (0 olmalı) |
+| Alan Başına İlk Giriş | Saatlik bar, zone bazında |
+| Kamyon Çekici Rengi | Renk dağılımı (donut) |
+| LLM Gecikme | Ortalama saatlik inference süresi (ms) |
+| Son Zone Olayları | Son 20 olay tablosu |
+| **Çevrimdışı Kamera** | `is_online=false` kamera sayısı (1+ kırmızı) |
+| **Kamera Durumu** | Kamera / online / son görülme / uyarıldı |
 
-### Alert Kuralları (Grafana → Telegram veya email)
+### Bridge log
 
-| Kural | Eşik | Aksiyon |
-|---|---|---|
-| LLM aylık maliyet (PoC bütçe $10) | > $8 (%80) | Uyarı |
-| LLM aylık maliyet (PoC) | > $10 | LLM disable + acil uyarı |
-| LLM aylık maliyet (Production bütçe $25) | > $20 (%80) | Uyarı |
-| LLM aylık maliyet (Production) | > $25 | LLM disable + acil uyarı |
-| **Kamera offline** | > 60 sn frame yok | **Uyarı + e-posta** |
-| Kamera offline (kritik kapı/oda) | > 60 sn | **Acil + telefon push** |
-| Postgres bağlantı kopuk | herhangi | Acil |
-| Disk doluluk | > %80 | Uyarı |
-| Disk doluluk | > %95 | Acil + auto-cleanup |
-| Bridge container restart | > 3/saat | Uyarı |
-| Dahua alarm fail | > %20 | Uyarı |
-| SMTP fail | > 5 ardışık | Uyarı (e-posta gitmiyor) |
-| Sunucu RAM | > %85 | Uyarı (SnipeIT etkilenebilir) |
+```bash
+docker compose logs -f bridge
+```
+Önemli satırlar: `zone.first_entry`, `door.entry`/`door.exit`, `truck.analyzed`, `camera.offline`/`camera.recovered`, `dahua.alarm_sent`/`zone.dahua_alarm_pending`.
 
-> NVR'a RTSP pull yapmıyoruz, NVR CPU izlemeye gerek yok. NVR'ın kendi sağlık göstergesi orijinal Dahua paneliyle takip edilir.
+## Bildirim & Uyarı
 
-### Kamera Offline Detayı
+**Olay bildirimi DMSS mobil push ile** — bridge olayı Dahua NVR'a external alarm gönderir, NVR kendi push kuralıyla DMSS app'e iletir (bkz. [`05-dahua-integration.md`](05-dahua-integration.md#dmss-mobil-push-bildirimi)). Ayrı e-posta/SMS/Telegram **yok** (kapsam dışı).
 
-Frigate her kamera için `frigate/<cam>/available` MQTT topic'inde durumu yayar. Bridge bunu dinler:
+| Olay | Mekanizma |
+|---|---|
+| Zone ilk giriş (alarm_emitted) | Dahua external alarm → DMSS |
+| Kapı geçişi (giriş/çıkış) | Dahua external alarm → DMSS |
+| **Kamera offline** | Dahua external alarm (`camera_offline`) → DMSS + Grafana paneli |
+| Disk doluluk / RAM | Grafana alert (opsiyonel kurulur) |
 
-- `available=False` → bridge başlangıçta 30 sn bekler (ağ glitchi olabilir)
-- 60 sn devam ederse → DB'ye `camera_offline` event yazılır
-- Kritik kameralar (kapı, kasa, ana giriş) için → derhal e-posta gönderilir
-- Online'a dönünce → "Kamera tekrar online" log + opsiyonel e-posta
+> NVR'a RTSP pull yapılmaz → NVR CPU izlenmez. NVR'ın kendi sağlığı orijinal Dahua panelinden takip edilir.
 
-Konfigürasyonda kritik kameralar belirtilir:
+### Kamera Offline (gerçek davranış)
 
-```yaml
-# bridge/config/cameras.yaml
-cameras:
-  ana_kapi:
-    critical: true
-    offline_alert_email: ["guvenlik@example.com", "mudur@example.com"]
-  depo_giris:
-    critical: true
-  arka_park:
-    critical: false   # sadece log
+`CameraMonitor` (`bridge/cameras.py`) Frigate `/api/stats`'ı `camera_check_interval_s` (default 30s) periyodunda çeker. Her kameranın `camera_fps`'i izlenir:
+
+- `camera_fps > 0` → canlı: `camera_status.last_seen_at` güncellenir, `is_online=true`
+- `camera_fps == 0` ve son görülmeden bu yana `camera_offline_threshold_s` (60s) geçti → **offline**: `is_online=false`, bir kez uyarılır (`offline_alert_sent`), Dahua client varsa external alarm (`camera_channels` → NVR channel)
+- Tekrar `camera_fps>0` → recovery: online, alert flag reset
+- Frigate erişilemezse kameralar offline **işaretlenmez** (Frigate down ≠ kamera down)
+
+Durum sorgusu:
+```bash
+docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT camera_id, is_online, last_seen_at FROM camera_status ORDER BY is_online, camera_id;"
 ```
 
 ## Backup
 
 ### Postgres
-
 ```bash
-# Otomatik günlük yedek (cron)
+# Günlük yedek (cron, örn 03:00)
 0 3 * * * docker exec ainvr-postgres pg_dump -U ainvr ainvr | \
   gzip > /backup/ainvr_$(date +\%Y\%m\%d).sql.gz
 ```
+- 30 gün local retention + haftalık off-site (rsync / B2 vb.)
+- Restore: `gunzip -c yedek.sql.gz | docker exec -i ainvr-postgres psql -U ainvr -d ainvr`
 
-- 30 gün local retention
-- Haftada bir off-site (rsync to remote, BackBlaze B2 vs.)
+### Named volume'lar
+`postgres-data` (DB), `frigate-config` (Frigate user DB + JWT — kaybı login sıfırlar), `grafana-data`, `ainvr-media` (snapshot). `docker run --rm -v <volume>:/v -v $PWD:/b alpine tar czf /b/<volume>.tgz -C /v .` ile arşivlenebilir.
 
 ### Snapshot dosyaları
+`/var/lib/ainvr/snapshots` → cron ile 90 gün retain:
+```bash
+find /var/lib/ainvr/snapshots -type f -mtime +90 -delete
+```
 
-- Frigate kendi rotation yapar (config'de `retain` günü).
-- Olay snapshot'ları (`/var/lib/ainvr/snapshots`) → 90 gün retain.
-- Cron job ile temizlik:
-  ```bash
-  find /var/lib/ainvr/snapshots -type f -mtime +90 -delete
-  ```
-
-### Restore Testi
-
-3 ayda bir backup'tan yepyeni bir test instance restore et, çalıştır, doğrula.
+### Restore testi
+3 ayda bir yedekten temiz bir test instance restore edip çalıştır, doğrula.
 
 ## Logging
 
-Tüm container'lar Docker JSON file driver'a log atar. Log rotation:
-
+Tüm container'lar Docker `json-file` driver'a log atar; rotation `docker-compose.yml`'de zaten tanımlı (`max-size`, `max-file`) — ek log rotation gerekmez:
 ```yaml
-# docker-compose.yml içinde her service için
 logging:
   driver: json-file
-  options:
-    max-size: 100m
-    max-file: 5
+  options: { max-size: "100m", max-file: "5" }
 ```
+
+## Restart & Recovery
+
+```bash
+docker compose restart bridge          # tek servis
+docker compose up -d                   # tümü (config değişikliği sonrası)
+```
+
+**İlk kurulum / yeni volume** — şema migrasyonu zorunlu (yoksa bridge `relation "zone_events" does not exist` ile crash):
+```bash
+docker compose run --rm --entrypoint "" bridge alembic upgrade head
+```
+
+**Restart sonrası durum (recovery):**
+- **Zone** state machine son `first_entry`'den DB ile geri yüklenir (`restore_from_db`) — in-flight oda olayı kaçmaz.
+- **Door** açık oturum bellektedir → restart'ta sıfırlanır; sonraki geçiş "giriş" sayılır (kabul edilen basitleştirme).
+- **Camera status** DB'de kalıcıdır; CameraMonitor bir sonraki turda yeniden değerlendirir.
 
 ## Sorun Giderme
 
+### Colima / Docker ayağa kalkmıyor (dev — macOS)
+`docker` "Cannot connect to daemon" → Colima uyku/restart ile kapanmış:
+```bash
+colima start          # son config'i (8 CPU) hatırlar
+docker compose up -d
+```
+Yeni shell'de context `default`'a dönerse: `docker context use colima`.
+
+### Bridge crash: "relation ... does not exist"
+Migrasyon atlanmış → `docker compose run --rm --entrypoint "" bridge alembic upgrade head`.
+
 ### "Frigate kamerayı göremiyor"
-
 ```bash
-docker logs ainvr-frigate 2>&1 | grep <cam_name>
-ffmpeg -i <rtsp_url> -t 5 -c copy /tmp/test.mp4  # elle test
+docker compose logs ainvr-frigate 2>&1 | grep <cam>
+ffmpeg -rtsp_transport tcp -i "<rtsp_url>" -t 5 -c copy /tmp/test.mp4   # elle test
 ```
+Nedenler: şifre/URL-encode (`@`→`%40`), network/VLAN erişimi, H.265 yavaş (H.264'e geç).
 
-Olası nedenler:
-- Şifre yanlış (özel karakterleri URL-encode etmeyi unutma: `@` → `%40`)
-- Network: AI sunucu kamera VLAN'ına erişemiyor
-- H.265 yavaş: kamerayı H.264'e geç
+### "Çok yanlış-pozitif alarm"
+1. Frigate UI → cam → Debug → obje score'larını izle
+2. `frigate/config.yml` `min_score` artır (0.6 → 0.75)
+3. Zone polygon'u daralt (Frigate UI Zone Editor; `FRIGATE_CONFIG_MODE=rw` ise host dosyasına yansır)
 
-### "Çok yanlış-pozitif alarm geliyor"
-
-1. Frigate UI → Settings → Debug → her objenin score'unu izle
-2. `frigate/config.yml`'de `min_score` arttır (0.6 → 0.75)
-3. Zone'u daralt — koridorun tamamı yerine sadece geçiş noktası
-
-### "LLM cevap vermiyor"
-
+### "Ollama / LLM cevap vermiyor"
 ```bash
-docker logs ainvr-bridge | grep -i "anthropic\|llm"
-# Manuel test
-docker exec ainvr-bridge python -m bridge.llm test-truck-color sample.jpg
+docker compose logs ainvr-bridge | grep -iE "llm|truck|ollama"
+docker compose exec bridge python -c "import httpx; print(httpx.get('http://host.docker.internal:11434/api/tags').json())"
 ```
+Nedenler: host'ta `ollama serve` çalışmıyor, model indirilmemiş (`ollama pull qwen2.5vl:7b`), büyük snapshot → timeout (latency Grafana'dan izlenir).
 
 ### "Dahua alarm gitmedi"
-
 ```bash
-docker exec ainvr-bridge python -m bridge.dahua diagnose
+docker compose logs ainvr-bridge | grep dahua
 ```
+`zone.dahua_alarm_pending` → NVR erişilemez (retry worker tekrar dener). `dahua.disabled` → `DAHUA_ALARM_ENABLED=false` (dev). Gerçek NVR + push kuralı: [`05-dahua-integration.md`](05-dahua-integration.md).
 
-Çıktıda hangi API'lerin destek geldiği listelenir.
-
-### "Sunucu RAM doldu, SnipeIT yavaşladı"
-
+### "Sunucu RAM doldu"
 ```bash
 docker stats --no-stream
 ```
-
-En çok yiyen container'ı bul. Genelde Frigate. Çözüm:
-- Kamera FPS'i 5 → 3'e düşür
-- Sub-stream çözünürlüğünü 640×480 → 480×360
-- Coral USB ekle (bekleyen iş)
+Genelde Frigate. Çözüm: kamera `fps` 5→3, sub-stream çözünürlük düşür, Coral USB (M6). Ollama modeli ~6 GB RAM ister — host'ta yer olduğundan emin ol.
 
 ### "Postgres connection refused"
-
 ```bash
-docker compose ps
-docker logs ainvr-postgres --tail 50
+docker compose ps && docker compose logs ainvr-postgres --tail 50
 ```
-
-Genelde disk dolu veya max_connections aşılmış.
+Genelde disk dolu veya `max_connections`.
 
 ## Yeni Kamera Ekleme
+1. `frigate/config.yml` → RTSP girişi + detect + zone polygon
+2. `bridge/config/zones.yaml` → zone kuralı (`type: room` veya `door`, `dahua_channel`)
+3. `docker compose restart frigate bridge` (ikisi de RW bind mount — rebuild gerekmez)
+4. Frigate UI'dan canlı görüntüyü + Grafana'dan olayları doğrula
 
-1. `frigate/config.yml`'ye ekle (RTSP URL, zones, detect ayarları)
-2. `bridge/config/zones.yaml`'ye state machine kuralı ekle (eğer aktif izlenecekse)
-3. `docker compose restart frigate bridge`
-4. Frigate UI'dan yeni kamerayı doğrula
-5. Grafana dashboard'a değişken ekle
-
-## Yeni Bir Alan Kuralı Ekleme
-
-Aktif izlenen alanı 11'e çıkarmak:
-
-1. `bridge/config/zones.yaml` → yeni zone tanımı
+## Yeni Alan / Kapı Kuralı
+1. `bridge/config/zones.yaml` → yeni zone (`room`/`door`)
 2. `frigate/config.yml` → ilgili kamerada zone koordinatları
 3. `docker compose restart bridge frigate`
-4. Test: o alana gir, ilk-giriş alarmı geldiğini doğrula
+4. Test: alana gir → `zone.first_entry` / kapıdan geç → `door.entry`
 
-## Sistemin Üzerine Yapılan Geliştirmeler
+## Geliştirme & Deploy
 
-Tüm değişiklikler git üzerinden:
+Tüm değişiklikler git üzerinden (her PR subagent review + post-merge doğrulama — bkz. proje workflow):
+```bash
+git checkout -b feat/...      # branch
+# edit + test (uv run --group dev pytest / ruff / mypy)
+git commit && git push
+gh pr create                  # subagent review → squash merge
+# production: cd /opt/ai_nvr && git pull && docker compose up -d
+```
 
-1. `git checkout main` (veya feature branch)
-2. `git pull`
-3. Edit → test (local Docker)
-4. `git commit -m "..."`
-5. `git push`
-6. Production sunucuya: `cd /opt/ai_nvr && git pull && docker compose up -d`
+## Kapanış
 
-## Kapanış Notu
-
-Sistem **olayları kaçırmamak** ve **operatörü gece aramamak** üzerine kurulmuştur. Eğer:
-
-- Operatör 3'ten fazla "boşa alarm" görüyorsa → kalibrasyon gerekli
-- 1 hafta hiç alarm gelmediyse → bir şey kırılmış olabilir, test et
-
-Bu denge tutturulduğu sürece sistem işini yapıyor demektir.
+Sistem **olayları kaçırmamak** ve **operatörü gece aramamak** üzerine kurulur. 3'ten fazla "boşa alarm" → kalibrasyon; 1 hafta hiç olay yok → bir şey kırılmış olabilir, test et.
