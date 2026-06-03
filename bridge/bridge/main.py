@@ -104,9 +104,7 @@ async def run(settings: Settings) -> None:
     # M7 — kamera offline tespit. Offline → Dahua alarm için kamera→NVR channel
     # eşlemesi zones.yaml dahua_channel'dan türetilir.
     camera_channels = {z.camera: z.rules.dahua_channel for z in zones_cfg.zones}
-    camera_monitor = CameraMonitor(
-        settings, db, dahua=dahua, camera_channels=camera_channels
-    )
+    camera_monitor = CameraMonitor(settings, db, dahua=dahua, camera_channels=camera_channels)
 
     # State recovery
     for zsm in state_machines.values():
@@ -136,17 +134,13 @@ async def run(settings: Settings) -> None:
         _listen_loop(mqtt, state_machines, cameras_to_zones, truck_handler, stop_event)
     )
     ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
-    camera_task = asyncio.create_task(
-        _camera_monitor_loop(camera_monitor, settings, stop_event)
-    )
+    camera_task = asyncio.create_task(_camera_monitor_loop(camera_monitor, settings, stop_event))
     tasks = [listener, ticker, camera_task]
 
     # M4 — pending Dahua alarm retry worker (yalnızca alarm aktifse)
     if dahua is not None:
         tasks.append(
-            asyncio.create_task(
-                _dahua_retry_loop(dahua, db, zones_cfg, settings, stop_event)
-            )
+            asyncio.create_task(_dahua_retry_loop(dahua, db, zones_cfg, settings, stop_event))
         )
 
     try:
@@ -301,9 +295,7 @@ async def _camera_monitor_loop(
     """Periyodik kamera offline kontrolü (M7) — `camera_check_interval_s`."""
     while not stop_event.is_set():
         try:
-            await asyncio.wait_for(
-                stop_event.wait(), timeout=settings.camera_check_interval_s
-            )
+            await asyncio.wait_for(stop_event.wait(), timeout=settings.camera_check_interval_s)
             return  # stop_event geldi
         except TimeoutError:
             try:

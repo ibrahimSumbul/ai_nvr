@@ -31,9 +31,7 @@ class SnapshotStore:
             timeout=httpx.Timeout(timeout),
         )
 
-    async def fetch_event_snapshot(
-        self, event_id: str, height: int | None = None
-    ) -> Path | None:
+    async def fetch_event_snapshot(self, event_id: str, height: int | None = None) -> Path | None:
         """Frigate event ID için snapshot'ı indir, diske yaz, path döndür.
 
         Frigate `/api/events/<event_id>/snapshot.jpg` endpoint'ine erişir.
