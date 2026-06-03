@@ -85,6 +85,35 @@ docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
   -c "SELECT camera_id, is_online, last_seen_at FROM camera_status ORDER BY is_online, camera_id;"
 ```
 
+## Performans Testi (M5)
+
+`bridge/perf.py` — stack ayaktayken CPU/RAM/gecikme örnekleyip M5 kabul kriterlerine göre pass/fail raporu üreten harness. **Host'ta** çalışır (`docker stats` için), Frigate'e `/api/stats` ile erişir (default `http://localhost:5100`).
+
+```bash
+make perf                                                   # 60s duman testi (5s aralık)
+make perf ARGS="--duration 86400 --interval 30 --out perf-24h"   # gerçek 24 saat koşum
+```
+
+Üç check (M5 doğrulama kriterlerine birebir):
+
+| Check | Metrik | Default eşik |
+|---|---|---|
+| **RAM stabil** | container bellek büyümesi (ilk→son %10 pencere) | ≤ %20 |
+| **CPU başı boş** | detector p95 inference süresi | ≤ 200 ms |
+| **Kaçan olay <%5** | kamera `skipped_fps / camera_fps` p95 | ≤ %5 |
+
+Eşik aşımı ilgili çekirdek kaynağının dolduğunu gösterir; özellikle inference süresi fırlıyorsa **Coral USB** (M6) zamanı gelmiştir. Eşikler CLI ile override edilir (`--max-mem-growth`, `--max-inference`, `--max-skipped`).
+
+Çıktı:
+- `<out>.csv` — long-format zaman serisi (`timestamp,kind,name,metric,value`), Grafana/plot dostu
+- `<out>.json` — özet (per-container/kamera/detector istatistik + checks + pass/fail)
+- stdout tablo + exit code (0 geçti / 1 kaldı → CI/cron uyumlu)
+
+**Notlar**:
+- macOS'te host `:5000` AirPlay Receiver'da; compose Frigate'i `5100:5000` yayınlar → harness default'u `:5100`.
+- Frigate `/api/stats` erişilemezse Frigate metrikleri atlanır, `docker stats` (CPU/RAM) yine toplanır.
+- Dev ortamında: `colima start` + `make up`, stream'ler akarken çalıştır (docs/03-setup.md).
+
 ## Backup
 
 ### Postgres

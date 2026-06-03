@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build
+.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build perf
 
 # Default: help göster
 help:
@@ -23,6 +23,10 @@ help:
 	@echo "Migrations:"
 	@echo "  make migrate          — Alembic upgrade head"
 	@echo "  make revision NAME=x  — Yeni migrasyon oluştur"
+	@echo ""
+	@echo "Performans (M5 — stack up iken host'ta):"
+	@echo "  make perf             — 60s perf testi (ARGS='...' ile override)"
+	@echo "  make perf ARGS='--duration 86400 --interval 30 --out perf-24h'"
 
 up:
 	docker compose up -d
@@ -61,6 +65,9 @@ lint:
 
 type:
 	cd bridge && uv run mypy bridge
+
+perf:
+	cd bridge && uv run python -m bridge.perf $(ARGS)
 
 migrate:
 	docker compose exec bridge alembic upgrade head
