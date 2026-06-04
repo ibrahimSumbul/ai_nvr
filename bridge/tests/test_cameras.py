@@ -82,7 +82,11 @@ def _monitor(
 ) -> CameraMonitor:
     """CameraMonitor'ı MockTransport'lu stats endpoint ile kur."""
     m = CameraMonitor(
-        _settings(), db, clock=clock, dahua=dahua, camera_channels=camera_channels  # type: ignore[arg-type]
+        _settings(),
+        db,
+        clock=clock,
+        dahua=dahua,
+        camera_channels=camera_channels,  # type: ignore[arg-type]
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
