@@ -197,7 +197,20 @@ def test_stat_empty() -> None:
 def test_growth_pct() -> None:
     assert _growth_pct([100.0, 110.0]) == pytest.approx(10.0)
     assert _growth_pct([]) == 0.0
-    assert _growth_pct([0.0, 5.0]) == 0.0  # ilk 0 → büyüme tanımsız → 0
+    assert _growth_pct([5.0]) == 0.0  # n<2 → 0
+    assert _growth_pct([0.0, 5.0]) == 0.0  # intercept 0 → büyüme tanımsız → 0
+
+
+def test_growth_pct_linear_leak_not_underreported() -> None:
+    """Review bulgusu: lineer sızıntı eşiğin altında görünmemeli.
+
+    100 örnekli 500→600 MB lineer rampa (gerçek %20). Doğrusal eğim bunu TAM
+    yakalar (≈%20); eski ilk/son-pencere-ortalaması içe-çekme biasıyla ~%18'e
+    düşürüp ≤%20 eşiğini yanlışlıkla geçirebiliyordu.
+    """
+    n = 100
+    ramp = [500.0 + 100.0 * i / (n - 1) for i in range(n)]
+    assert _growth_pct(ramp) == pytest.approx(20.0, abs=0.3)
 
 
 # --------------------------------------------------------------------------- #

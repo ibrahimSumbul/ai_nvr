@@ -257,7 +257,7 @@ class ContainerReport:
     name: str
     cpu: Stat
     mem_mb: Stat
-    mem_growth_pct: float  # (son - ilk) / ilk — RAM stabilite / sızıntı sinyali
+    mem_growth_pct: float  # doğrusal eğim-tabanlı büyüme % (sızıntı sinyali; bkz _growth_pct)
 
 
 @dataclass(frozen=True)
@@ -283,16 +283,30 @@ class PerfReport:
 
 
 def _growth_pct(series: Sequence[float]) -> float:
-    """İlk → son yüzde değişim. Gürültüyü azaltmak için ilk/son %10 pencere ort."""
+    """Bellek büyüme yüzdesi — en küçük kareler doğrusal eğimi ile (sızıntı sinyali).
+
+    Önceki ilk/son %10 pencere ortalaması bir lineer rampayı içe çekip OLDUĞUNDAN
+    AZ raporluyordu (24s yavaş sızıntı eşiğin altında "stabil" görünebilirdi —
+    harness'in asıl amacında kör nokta). Bunun yerine mem(t)'ye doğru fit edilir;
+    tüm koşum boyunca öngörülen yükseliş (slope*(n-1)) fit baz değerine (intercept)
+    oranlanır → rampayı tam yakalar, tek GC dip'inden de daha az etkilenir.
+    """
     n = len(series)
-    if n == 0:
+    if n < 2:
         return 0.0
-    window = max(1, n // 10)
-    first = sum(series[:window]) / window
-    last = sum(series[-window:]) / window
-    if first <= 0:
+    xs = range(n)
+    sx = sum(xs)
+    sy = sum(series)
+    sxx = sum(i * i for i in xs)
+    sxy = sum(i * v for i, v in zip(xs, series, strict=True))
+    denom = n * sxx - sx * sx
+    if denom == 0:
         return 0.0
-    return 100.0 * (last - first) / first
+    slope = (n * sxy - sx * sy) / denom
+    intercept = (sy - slope * sx) / n  # x=0'daki fit baz değeri
+    if intercept <= 0:
+        return 0.0
+    return 100.0 * (slope * (n - 1)) / intercept
 
 
 def summarize(samples: Sequence[Sample]) -> PerfReport:
