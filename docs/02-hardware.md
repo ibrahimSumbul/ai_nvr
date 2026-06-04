@@ -14,6 +14,8 @@
 
 > **LLM lokal:** Tır/dorse renk analizi host'taki **Ollama** (`qwen2.5vl:7b`) ile yapılır; container ona `host.docker.internal:11434` üzerinden erişir. Model RAM'de ~6 GB yer kaplar (yüklenince). Aylık LLM maliyeti **$0** (sadece elektrik), görüntüler tesisten çıkmaz. Detay: [`06-llm-strategy.md`](06-llm-strategy.md).
 
+> **Kullanım senaryosu:** Donanım hedefinin (GPU'suz CPU'nun yeterli sayılması) dayanağı budur — sistem **ofis/depo operasyonel görünürlüğü** içindir (tır/alan/kapı logu, yetkisiz giriş alarmı dahil); gerçek-zamanlı, milisaniye-tepkili otomatik savunma/müdahale sistemi değildir. Gerçek-zamanlı tespiti Frigate üstlenir; **LLM'in CPU'da saniyeler süren olay-tetikli** analizi bu kullanımda fazlasıyla **zamanındadır** ve gerekirse dakikalar mertebesi gecikme bile senaryoya uygundur. Bkz. [`07-cost-analysis.md`](07-cost-analysis.md), [`10-why-frigate.md`](10-why-frigate.md).
+
 ## PoC İçin Yeterli Mi?
 
 **Evet, koşullu olarak.** Frigate CPU modunda 10 kamerayı **sub-stream'de düşük FPS** ile işleyebilir.

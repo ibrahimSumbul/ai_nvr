@@ -44,6 +44,8 @@ Bir kişi kapıdan **0.5 saniyede** geçer. Saf bir LLM ile gerçek zamanlı tep
 
 Frigate inference süresi: **10 ms** (Coral) / 100 ms (CPU). 10× ile 100× daha hızlı.
 
+> **Hibritte gecikme bir kusur değil — senaryoya uygundur.** Yukarıdaki argüman *saf LLM'i sürekli detection motoru yapmak* içindir; gerçek-zamanlı tespit/tracking'i (ve gerektiğinde alarmı) Frigate (ms mertebesi) üstlenir. LLM yalnızca **olay-tetikli semantik zenginleştirme** yapar ve buradaki saniyeler süren gecikme hedef kullanımda bilinçli olarak kabul edilir: bu sistem **ofis/depo operasyonel görünürlüğü** içindir (tır/alan/kapı logu, yetkisiz giriş alarmı dahil) — ama **gerçek-zamanlı, milisaniye-tepkili otomatik savunma/müdahale sistemi değil**; bkz. [`07-cost-analysis.md`](07-cost-analysis.md), dolayısıyla bir kamyonun rengini birkaç saniye — gerekirse dakikalar — sonra öğrenmek hâlâ fazlasıyla zamanındadır. **Asıl kazanç güvenilirliktir:** lokal/$0/kotasız yol, olayı bulut maliyeti veya rate-limit'i yüzünden **hiç işleyememe** riskini ortadan kaldırır. Çerçeve: "biraz gecikme" değil, "olayı kaçırmama".
+
 ### 3. Kota / Kapasite Sınırı
 
 **Bulut LLM** tier'a göre dakikalık çağrı sınırına (rate-limit) takılır:
