@@ -30,9 +30,7 @@ def _settings(**overrides: Any) -> Settings:
     return Settings(_env_file=None, **base)  # type: ignore[call-arg]
 
 
-def _client_with_handler(
-    settings: Settings, handler: Any
-) -> DahuaClient:
+def _client_with_handler(settings: Settings, handler: Any) -> DahuaClient:
     """DahuaClient'ı MockTransport'lu bir httpx client ile kur."""
     client = DahuaClient(settings, sleep=_no_sleep)
     client._client = httpx.AsyncClient(
