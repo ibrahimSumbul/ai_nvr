@@ -111,7 +111,7 @@ Eşik aşımı ilgili çekirdek kaynağının dolduğunu gösterir; özellikle i
 
 **Notlar**:
 - macOS'te host `:5000` AirPlay Receiver'da; compose Frigate'i `5100:5000` yayınlar → harness default'u `:5100`.
-- Frigate `/api/stats` erişilemezse Frigate metrikleri atlanır, `docker stats` (CPU/RAM) yine toplanır.
+- Frigate `/api/stats` erişilemezse Frigate'e dayalı check'ler **"veri yok" ile başarısız** olur (eksik koşum yanlışlıkla GEÇTİ/exit 0 dönmez); `docker stats` (RAM) yine toplanıp ayrı raporlanır.
 - Dev ortamında: `colima start` + `make up`, stream'ler akarken çalıştır (docs/03-setup.md).
 
 ## Backup

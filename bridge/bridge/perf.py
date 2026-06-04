@@ -20,8 +20,9 @@ Host'ta, stack up iken çalıştır (bkz. Makefile `perf` + docs/08-operations.m
 Not: harness HOST'ta koşar (docker stats için). Frigate'e `--frigate-url` ile
 host port'undan erişir; default http://localhost:5100 (compose `5100:5000` —
 host 5000 macOS'te AirPlay Receiver'da çakışır). `/api/stats` Frigate'in auth'suz
-internal API'sidir (CameraMonitor da böyle çağırır). Erişilemezse Frigate
-metrikleri atlanır, docker stats (CPU/RAM) yine toplanır — kısmi veriyle çalışır.
+internal API'sidir (CameraMonitor da böyle çağırır). Erişilemezse Frigate'e dayalı
+check'ler **'veri yok' ile BAŞARISIZ** olur (eksik koşum yanlışlıkla GEÇTİ/exit 0
+dönmesin); docker stats (RAM) yine toplanıp ayrı raporlanır.
 """
 
 from __future__ import annotations
@@ -392,52 +393,64 @@ class Verdict:
 
 
 def evaluate(report: PerfReport, thresholds: Thresholds) -> Verdict:
-    """Raporu M5 eşiklerine göre değerlendir → 3 check + genel sonuç."""
+    """Raporu M5 eşiklerine göre değerlendir → 3 check + genel sonuç.
+
+    Kaynak verisi yoksa (Frigate `/api/stats` veya docker stats erişilemedi)
+    ilgili check **'veri yok' ile BAŞARISIZ** olur — 24s/CI koşumunda eksik veri
+    yanlışlıkla "GEÇTİ" görünmesin (örn. Frigate gece düşse exit 0 dönmemeli).
+    """
     checks: list[CheckResult] = []
 
-    # 1) RAM stabil — hiçbir container eşik üstü büyümemeli
-    if report.containers:
-        worst_c = max(report.containers, key=lambda c: c.mem_growth_pct)
-        growth, gname = worst_c.mem_growth_pct, worst_c.name
-    else:
-        growth, gname = 0.0, "-"
-    checks.append(
-        CheckResult(
-            name="RAM stabil",
-            passed=growth <= thresholds.max_mem_growth_pct,
-            detail=(
-                f"en yüksek bellek büyümesi {growth:+.1f}% ({gname}), "
-                f"eşik {thresholds.max_mem_growth_pct:.0f}%"
-            ),
+    # 1) RAM stabil — container bellek büyümesi eşik altında
+    if not report.containers:
+        checks.append(
+            CheckResult("RAM stabil", False, "container verisi yok — docker stats alınamadı")
         )
-    )
+    else:
+        wc = max(report.containers, key=lambda c: c.mem_growth_pct)
+        checks.append(
+            CheckResult(
+                "RAM stabil",
+                wc.mem_growth_pct <= thresholds.max_mem_growth_pct,
+                f"en yüksek bellek büyümesi {wc.mem_growth_pct:+.1f}% ({wc.name}), "
+                f"eşik {thresholds.max_mem_growth_pct:.0f}%",
+            )
+        )
 
     # 2) CPU başı boş — detector p95 inference eşik altında
-    worst_inf = max((d.inference_ms.p95 for d in report.detectors), default=0.0)
-    checks.append(
-        CheckResult(
-            name="CPU başı boş",
-            passed=worst_inf <= thresholds.max_inference_ms,
-            detail=f"detector p95 inference {worst_inf:.0f}ms, eşik {thresholds.max_inference_ms:.0f}ms",
+    if not report.detectors:
+        checks.append(
+            CheckResult(
+                "CPU başı boş", False, "detector verisi yok — Frigate /api/stats erişilemedi mi?"
+            )
         )
-    )
+    else:
+        worst_inf = max(d.inference_ms.p95 for d in report.detectors)
+        checks.append(
+            CheckResult(
+                "CPU başı boş",
+                worst_inf <= thresholds.max_inference_ms,
+                f"detector p95 inference {worst_inf:.0f}ms, eşik {thresholds.max_inference_ms:.0f}ms",
+            )
+        )
 
     # 3) Kaçan olay <%5 — kamera p95 atlanan-frame oranı eşik altında
-    if report.cameras:
-        worst_cam = max(report.cameras, key=lambda c: c.skipped_ratio.p95)
-        skip, sname = worst_cam.skipped_ratio.p95, worst_cam.name
-    else:
-        skip, sname = 0.0, "-"
-    checks.append(
-        CheckResult(
-            name="Kaçan olay <%5",
-            passed=skip <= thresholds.max_skipped_ratio,
-            detail=(
-                f"en yüksek p95 atlanan-frame oranı {skip * 100:.1f}% ({sname}), "
-                f"eşik {thresholds.max_skipped_ratio * 100:.0f}%"
-            ),
+    if not report.cameras:
+        checks.append(
+            CheckResult(
+                "Kaçan olay <%5", False, "kamera verisi yok — Frigate /api/stats erişilemedi mi?"
+            )
         )
-    )
+    else:
+        wcam = max(report.cameras, key=lambda c: c.skipped_ratio.p95)
+        checks.append(
+            CheckResult(
+                "Kaçan olay <%5",
+                wcam.skipped_ratio.p95 <= thresholds.max_skipped_ratio,
+                f"en yüksek p95 atlanan-frame oranı {wcam.skipped_ratio.p95 * 100:.1f}% "
+                f"({wcam.name}), eşik {thresholds.max_skipped_ratio * 100:.0f}%",
+            )
+        )
 
     return Verdict(passed=all(c.passed for c in checks), checks=tuple(checks))
 

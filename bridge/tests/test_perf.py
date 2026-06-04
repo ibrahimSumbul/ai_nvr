@@ -292,10 +292,30 @@ def test_evaluate_skipped_fails() -> None:
     assert v.checks[2].passed is False
 
 
-def test_evaluate_empty_report_passes() -> None:
-    """Hiç container/kamera/detector yoksa eşik aşımı da yok → geçer (boş koşum)."""
+def test_evaluate_empty_report_fails_no_data() -> None:
+    """Veri yoksa (Frigate+docker erişilemedi) yanlışlıkla GEÇTİ DEĞİL → BAŞARISIZ."""
     empty = PerfReport(samples=0, duration_s=0.0, containers=(), cameras=(), detectors=())
-    assert evaluate(empty, Thresholds()).passed is True
+    v = evaluate(empty, Thresholds())
+    assert v.passed is False
+    assert all(not c.passed for c in v.checks)
+    assert all("verisi yok" in c.detail for c in v.checks)
+
+
+def test_evaluate_frigate_down_fails_even_with_docker() -> None:
+    """docker stats var ama Frigate yok → RAM geçse de CPU/kaçan check'leri düşer."""
+    report = PerfReport(
+        samples=5,
+        duration_s=50.0,
+        containers=(ContainerReport("frigate", Stat.of([40.0]), Stat.of([500.0]), 2.0),),
+        cameras=(),
+        detectors=(),
+    )
+    v = evaluate(report, Thresholds())
+    assert v.passed is False
+    by_name = {c.name: c for c in v.checks}
+    assert by_name["RAM stabil"].passed is True  # docker verisi var
+    assert by_name["CPU başı boş"].passed is False  # detector yok
+    assert by_name["Kaçan olay <%5"].passed is False  # kamera yok
 
 
 # --------------------------------------------------------------------------- #

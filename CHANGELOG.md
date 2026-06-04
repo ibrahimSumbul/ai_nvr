@@ -18,8 +18,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 **M5 — Performans test harness**
 - `bridge/bridge/perf.py` — stack ayaktayken Frigate `/api/stats` + `docker stats` periyodik örnekler; M5 kriterlerine göre pass/fail: **RAM stabil** (container bellek büyümesi ≤%20), **CPU başı boş** (detector p95 inference ≤200ms → aşımı Coral USB sinyali), **kaçan olay <%5** (kamera skipped/decode ≤%5). Çıktı: CSV (long-format zaman serisi) + JSON (özet) + stdout tablo + exit code (CI/cron uyumlu). Eşikler CLI ile override.
-- `Makefile` `perf` hedefi (`make perf ARGS="..."`); default Frigate URL `localhost:5100` (compose `5100:5000` — host 5000 macOS AirPlay'de çakışır). Frigate erişilemezse docker stats ile kısmi çalışır.
-- Saf parse/özet/değerlendirme fonksiyonları IO'dan ayrıldı; **25 yeni unit test** (enjekte-deps IO döngüsü dahil — canlı stack gerekmez), toplam 111. Dokümantasyon: `docs/08-operations.md > Performans Testi (M5)`.
+- `Makefile` `perf` hedefi (`make perf ARGS="..."`); default Frigate URL `localhost:5100` (compose `5100:5000` — host 5000 macOS AirPlay'de çakışır).
+- **Subagent review sertleştirmeleri**: (1) büyüme metriği ilk/son-pencere-ort yerine **doğrusal regresyon eğimi** — lineer bellek sızıntısını tam yakalar (eski hali eşiğin altında "stabil" gösterebiliyordu); (2) eksik veri (Frigate `/api/stats` veya docker erişilemedi) → ilgili check **"veri yok" ile başarısız**, yanıltıcı GEÇTİ/exit 0 yok.
+- Saf parse/özet/değerlendirme fonksiyonları IO'dan ayrıldı; **28 unit test** (enjekte-deps IO döngüsü dahil — canlı stack gerekmez), toplam 113. Dokümantasyon: `docs/08-operations.md > Performans Testi (M5)`.
 
 **M3 — Truck gerçek E2E + Frigate truck detection fix**
 - `frigate/config.yml`:
