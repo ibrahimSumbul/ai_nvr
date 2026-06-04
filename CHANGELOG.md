@@ -16,6 +16,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M5 — Performans test harness**
+- `bridge/bridge/perf.py` — stack ayaktayken Frigate `/api/stats` + `docker stats` periyodik örnekler; M5 kriterlerine göre pass/fail: **RAM stabil** (container bellek büyümesi ≤%20), **CPU başı boş** (detector p95 inference ≤200ms → aşımı Coral USB sinyali), **kaçan olay <%5** (kamera skipped/decode ≤%5). Çıktı: CSV (long-format zaman serisi) + JSON (özet) + stdout tablo + exit code (CI/cron uyumlu). Eşikler CLI ile override.
+- `Makefile` `perf` hedefi (`make perf ARGS="..."`); default Frigate URL `localhost:5100` (compose `5100:5000` — host 5000 macOS AirPlay'de çakışır).
+- **Subagent review sertleştirmeleri**: (1) büyüme metriği ilk/son-pencere-ort yerine **doğrusal regresyon eğimi** — lineer bellek sızıntısını tam yakalar (eski hali eşiğin altında "stabil" gösterebiliyordu); (2) eksik veri (Frigate `/api/stats` veya docker erişilemedi) → ilgili check **"veri yok" ile başarısız**, yanıltıcı GEÇTİ/exit 0 yok.
+- Saf parse/özet/değerlendirme fonksiyonları IO'dan ayrıldı; **28 unit test** (enjekte-deps IO döngüsü dahil — canlı stack gerekmez), toplam 113. Dokümantasyon: `docs/08-operations.md > Performans Testi (M5)`.
+
 **M3 — Truck gerçek E2E + Frigate truck detection fix**
 - `frigate/config.yml`:
   - **`model.labelmap: 7: truck`** override — Frigate default SSD MobileNet modeli COCO label 7'yi (truck) varsayılan olarak "car"a remap ediyordu (tüm büyük araçlar "car"). Override ile truck/car ayrımı geri kazanıldı. **Production değeri** (YOLO upgrade gerekmedi — model truck'ı zaten algılıyordu).

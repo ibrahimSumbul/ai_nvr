@@ -154,7 +154,9 @@ class DoorStateMachine:
             )
             self._open_event_id = event_id
             self._open_entry_ts = now
-            log.info("door.entry", zone=cfg.name, door_event_id=event_id, tracking_id=event.event_id)
+            log.info(
+                "door.entry", zone=cfg.name, door_event_id=event_id, tracking_id=event.event_id
+            )
             await self._emit_dahua_alarm("door_entry")
         else:
             # ÇIKIŞ — açık oturumu kapat
@@ -194,6 +196,8 @@ class DoorStateMachine:
                 description=f"{cfg.name}: kapi gecisi ({event_type})",
             )
         except DahuaAlarmError as exc:
-            log.warning("door.dahua_alarm_failed", zone=cfg.name, event_type=event_type, error=str(exc))
+            log.warning(
+                "door.dahua_alarm_failed", zone=cfg.name, event_type=event_type, error=str(exc)
+            )
             return
         log.info("door.dahua_alarm_sent", zone=cfg.name, event_type=event_type)

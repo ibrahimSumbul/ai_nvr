@@ -36,9 +36,7 @@ class FakeSnapshots:
         self._returns = snapshot_returns
         self.height_calls: list[int | None] = []
 
-    async def fetch_event_snapshot(
-        self, event_id: str, height: int | None = None
-    ) -> Path | None:
+    async def fetch_event_snapshot(self, event_id: str, height: int | None = None) -> Path | None:
         self.height_calls.append(height)
         return self._returns
 
