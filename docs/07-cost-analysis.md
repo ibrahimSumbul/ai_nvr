@@ -2,6 +2,8 @@
 
 > **M3 güncellemesi:** Bu proje semantik analizde **lokal Ollama** (`qwen2.5vl:7b`) kullanır. **Aylık LLM maliyeti $0**'dır (yalnızca elektrik) — görüntüler tesisten çıkmaz, token/kota yoktur. Eski "$10–25/ay Haiku bütçesi" anlatısı geçersizdir; aşağıdaki tablolar lokal $0 modeline göre revize edilmiştir. Bulut hibrit (Anthropic) **planlıdır** — `LLM_PROVIDER` switch + `LLM_MONTHLY_BUDGET_USD` ayarı kodda hazır ama implementasyon henüz yok (bkz. [`06-llm-strategy.md`](06-llm-strategy.md), [`11-tech-decisions.md`](11-tech-decisions.md)).
 
+> **Kullanım senaryosu (maliyet modelinin dayanağı):** Hedef, **ofis/depo operasyonel görünürlüğüdür** (tır giriş-çıkış logu, alan/kapı hareket kaydı; yetkisiz giriş tespiti + alarm dahil) — ama **gerçek-zamanlı, milisaniye-tepkili otomatik savunma/müdahale sistemi değildir** (o sınıf sistemler o performansı zorunlu verdiği için pahalıdır; bu senaryo gerektirmez). Gerçek-zamanlı tespit/alarm gerektiğinde bunu Frigate (+ Dahua) hızlı yolu yapar; **LLM'in semantik analizindeki** saniye–dakika gecikme ise senaryoya uygundur — bu yüzden lokal, $0, olay-tetikli tasarım hem yeterli hem doğru tercihtir (bkz. [`06-llm-strategy.md`](06-llm-strategy.md), [`10-why-frigate.md`](10-why-frigate.md)).
+
 ## Özet — Toplam Maliyet
 
 | Faz | Donanım (tek seferlik) | LLM (aylık) | Toplam aylık |
