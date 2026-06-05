@@ -24,7 +24,7 @@ Frigate'in yapabildiği işler için **asla** LLM çağrılmaz: kişi tespiti, a
 | Yapısal çıktı | Ollama `format=json` ile JSON döndürme güvenilir |
 | Kota yok | API rate-limit yok; sınır yalnızca host inference kapasitesi |
 
-Trade-off: GPU'suz CPU inference **yavaştır** (saniyeler; `LLM_TIMEOUT_S` varsayılan 90s soğuk/büyük görüntü için marj). Olay-tetikli kullanımda kabul edilebilir.
+GPU'suz CPU inference saniyeler sürer (`LLM_TIMEOUT_S` varsayılan 90s, soğuk/büyük görüntü için marj). Bu **bir kusur değil, hedef senaryoya uygundur**: kullanım **ofis/depo operasyonel görünürlüğüdür** (gerçek-zamanlı, milisaniye-tepkili otomatik savunma/müdahale sistemi değil — bkz. [`07-cost-analysis.md`](07-cost-analysis.md)), dolayısıyla bir kamyonun rengini birkaç saniye — gerekirse dakikalar — sonra öğrenmek bu kullanımda fazlasıyla zamanındadır. Gerçek-zamanlı tespit/tracking'i (ve gerektiğinde alarmı) zaten Frigate (ms mertebesi) yapar; LLM yalnızca olay-tetikli semantik zenginleştirme katmanıdır. Üstelik lokal/$0/kotasız yol, olayı bulut maliyeti veya rate-limit'i yüzünden **hiç işleyememe** riskini ortadan kaldırır — yani "biraz gecikme" karşılığında "olayı kaçırmama" güvenilirliği kazanılır.
 
 Alternatifler / **planlı** bulut hibrit:
 - **Anthropic Claude (Haiku sınıfı)**: bulut, hızlı, güçlü vizyon — ama token maliyeti + görüntü dışarı çıkar + kota. `LLM_PROVIDER=anthropic` switch'i ve `ANTHROPIC_API_KEY`/`ANTHROPIC_MODEL` ayarları kodda **rezerve** ama `AnthropicClient` henüz yok (planlı fallback).
