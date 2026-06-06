@@ -186,12 +186,21 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 8: Genişletme Fırsatları (opsiyonel)
+## Milestone 8: Adli Davranış Zekası (forensic behavioral intelligence) 🔬 tasarım
 
-- [ ] Yüz tanıma (CompreFace) — yetki kontrolü için
-- [ ] Davranış/anomali tespiti (kavga, düşme)
+**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**).
+
+**Statü**: spec ✅, kod ❌. Spec üç adversarial geçişle sertleştirildi (red-team / completeness / consistency). Build öncesi **bloker kararlar Appendix A'da çözüldü**: sessionization (per-zone), PII/KVKK saklama+profilleme, ROI BEFORE-frame kaynağı, degraded yol, idempotency.
+
+- [ ] **M8.1 — Grounded rapor (tek kamera)**: occupancy session (per-zone, A.2) + **üç-sınıflı grounding** (ÖLÇÜLEN/TÜRETİLMİŞ/ÇIKARSANAN) + person∩obje bbox örtüşmesi + ROI before/after diff + tek `behavior_narrative` VLM çağrısı (anti-confab şema + marker↔confidence validator + writer-side numeric/kimlik scrub) + çok-bloklu rapor + alarm/DB (`occupancy_sessions`/`incident_reports`, alembic `0003`). *Manşeti ayağa kaldıran dilim.*
+- [ ] **M8.2 — Handoff (2. kamera)**: `camera_topology` + spatial-temporal eşleştirme (belirsizlik kuralı + saat-kayması payı; görünüm-tabanlı Re-ID **değil**).
+- [ ] **M8.3 — Dismissal-learning loop**: feedback yakalama + suppress/cache + token/olay eğrisi ölçümü (ürün-tarafı Reflexion; `llm_usage`'tan kanıt).
+- [ ] **Kabul** (`bridge/eval.py`, `make eval`): grounding ≥%98, confabulation≈0 (içerik-farkında audit), token-eğrisi ≥%30↓, handoff precision ≥0.90 / recall ≥0.80.
+
+### Diğer genişletme fırsatları (opsiyonel)
+- [ ] Yüz tanıma (CompreFace) — yetki kontrolü için (KVKK: Appendix A.8 saklama/profilleme kuralları geçerli)
+- [ ] Davranış/anomali tespiti (kavga, düşme) — adli rapor hattının üstüne
 - [ ] SnipeIT entegrasyonu (asset link)
-- [ ] Mobile push notification
 - [ ] Çoklu kullanıcı UI
 
 ---
@@ -215,3 +224,4 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 | 2026-05-25 | Python + asyncio seçildi (Node/Go/Rust elendi) | Anthropic/Pydantic/asyncpg olgun, ML ekosistem güçlü, hızlı yazma. Bkz. `docs/11-tech-decisions.md`. |
 | 2026-05-31 | **LLM: Haiku → lokal Ollama** (M3) | Aylık $0 (electric), görüntüler tesisten çıkmaz (gizlilik), kota/rate-limit yok. `LLM_PROVIDER` switch ile Anthropic hibrit ileride opsiyonel. Önceki "Haiku bütçe" kararları geçersiz. |
 | 2026-05-31 | **E-posta/viewer kapsam dışı — DMSS push yeterli** | Güvenlik operasyonu zaten DMSS mobil app kullanıyor. M4 external alarm → NVR push kuralı → DMSS bildirimi. Ayrı SMTP/viewer/HMAC altyapısı gereksiz karmaşıklık. |
+| 2026-06-06 | **M8 = adli davranış zekası; `docs/12` + Appendix A build kontratları** | Portföy manşeti: "olayı açıkla, ölçüleni çıkarsanandan ayır". Spec 3 adversarial geçişle (red-team/completeness/consistency) sertleştirildi; M8 fazlandı (8.1 grounded rapor → 8.2 handoff → 8.3 dismissal loop). Tasarım — henüz kod yok. |
