@@ -141,6 +141,7 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/09-notifications.md`](docs/09-notifications.md) | _(kapsam dışı)_ E-posta/viewer alternatifi — referans |
 | [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf LLM ile yapılamaz mı? |
 | [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları |
+| [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) | _(planlı, M8)_ Adli davranış zekası: ölçülen≠çıkarsanan grounding + build kontratları (Appendix A) |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
 ## Katkı
