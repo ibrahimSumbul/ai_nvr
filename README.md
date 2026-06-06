@@ -69,7 +69,7 @@ Detay: [`docs/01-architecture.md`](docs/01-architecture.md).
 
 ## Hızlı Başlangıç
 
-**Gereksinimler**: Docker + Docker Compose, [Ollama](https://ollama.com) (lokal LLM için, host'ta çalışır).
+**Gereksinimler**: Docker + Docker Compose, [Ollama](https://ollama.com) (lokal LLM için, host'ta çalışır). **8 GB RAM yeterli** — sistem CPU-only çalışır; Coral USB **zorunlu değil**, yalnızca ölçek büyürken opsiyonel hızlandırma.
 
 ```bash
 # 1. Klonla
@@ -120,8 +120,8 @@ Adım adım kurulum + sorun giderme: [`docs/03-setup.md`](docs/03-setup.md).
 | Kalem | Tutar | Not |
 |---|---|---|
 | **Aylık LLM** | **$0** | Ollama lokal — görüntüler tesisten çıkmaz |
-| Donanım (PoC) | $0 | Mevcut sunucu (CPU detection) |
-| Donanım (Production) | ~$60 (bir kere) | 1× Coral USB — detection hızlanır |
+| Donanım | $0 | Mevcut sunucu — **8 GB RAM + CPU detection yeterli** |
+| Coral USB (opsiyonel) | ~$60 (bir kere) | **Ekstra** hızlandırma; zorunlu değil, çok kamerada CPU yetmezse |
 | Bulut hibrit (planlı) | — | `LLM_PROVIDER` switch altyapısı hazır; Anthropic implementasyonu henüz yok (şu an yalnızca `ollama`) |
 
 Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut gecikme/kota): [`docs/06-llm-strategy.md`](docs/06-llm-strategy.md), [`docs/07-cost-analysis.md`](docs/07-cost-analysis.md).
