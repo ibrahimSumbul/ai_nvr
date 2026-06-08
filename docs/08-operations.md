@@ -66,7 +66,8 @@ docker compose logs -f bridge
 | Zone ilk giriş (alarm_emitted) | Dahua external alarm → DMSS |
 | Kapı geçişi (giriş/çıkış) | Dahua external alarm → DMSS |
 | **Kamera offline** | Dahua external alarm (`camera_offline`) → DMSS + Grafana paneli |
-| Disk doluluk / RAM | Grafana alert (opsiyonel kurulur) |
+| **Disk doluluk** | `DiskMonitor` eşik (`disk_warn_threshold_pct`, default %85) → Dahua external alarm (`disk_full`) → DMSS + Grafana "Disk Doluluk" paneli |
+| RAM | Grafana panel (opsiyonel) — perf harness ayrıca raporlar |
 
 > NVR'a RTSP pull yapılmaz → NVR CPU izlenmez. NVR'ın kendi sağlığı orijinal Dahua panelinden takip edilir.
 
@@ -83,6 +84,22 @@ Durum sorgusu:
 ```bash
 docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
   -c "SELECT camera_id, is_online, last_seen_at FROM camera_status ORDER BY is_online, camera_id;"
+```
+
+### Disk Doluluk + Snapshot Retention (gerçek davranış)
+
+`DiskMonitor` (`bridge/disk.py`) `disk_check_interval_s` (default 300s) periyodunda çalışır. **Enterprise model** — "disk dolunca en eskiyi sil" baskı-altı FIFO **değil**; disk hiç dolmasın diye sürekli zaman-tabanlı budama + eşikte erken alarm:
+
+- **Snapshot budama** (`snapshot_prune_interval_s`, default saatlik): bridge snapshot store'da (`/var/lib/ainvr/snapshots`) mtime'ı `snapshot_retention_days`'ten (default 90g) eski dosyalar silinir → snapshot dizini unbounded büyümez. Uygulama-içi garanti (harici cron'a bağlı değil).
+- **Doluluk eşiği**: snapshot dizininin dosya sistemi (`shutil.disk_usage`) izlenir; doluluk `disk_warn_threshold_pct` (default %85) aşılınca **bir kez** Dahua external alarm (`disk_full`) → DMSS. Histerezis: flag ancak doluluk (eşik − `disk_recover_margin_pct`) altına düşünce resetlenir (eşik etrafında flapping → tekrar tekrar alarm önlenir).
+- Ölçümler `disk_status` tablosuna upsert edilir (mount başına tek satır); Grafana "Disk Doluluk" + "Snapshot Disk" + "Disk Durumu" panelleri buradan okur.
+
+> **Ham video FIFO kapsam dışı**: sürekli/olay kaydı Dahua NVR'da; NVR kendi ring-buffer'ını (en eskiyi üzerine yazma) native yönetir. Bu AI stack video tutmaz (`frigate record.enabled=false`), sadece kendi snapshot'larını budar.
+
+Durum sorgusu:
+```bash
+docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT mount, used_pct, snapshot_files, last_pruned_at, alert_sent FROM disk_status;"
 ```
 
 ## Performans Testi (M5)
@@ -129,7 +146,7 @@ Eşik aşımı ilgili çekirdek kaynağının dolduğunu gösterir; özellikle i
 `postgres-data` (DB), `frigate-config` (Frigate user DB + JWT — kaybı login sıfırlar), `grafana-data`, `ainvr-media` (snapshot). `docker run --rm -v <volume>:/v -v $PWD:/b alpine tar czf /b/<volume>.tgz -C /v .` ile arşivlenebilir.
 
 ### Snapshot dosyaları
-`/var/lib/ainvr/snapshots` → cron ile 90 gün retain:
+`/var/lib/ainvr/snapshots` budama artık **uygulama-içi** (`DiskMonitor`, `SNAPSHOT_RETENTION_DAYS` default 90g) — ayrı cron gerekmez (bkz. "Disk Doluluk + Snapshot Retention" yukarıda). Bridge çalışmıyorken manuel eşdeğer:
 ```bash
 find /var/lib/ainvr/snapshots -type f -mtime +90 -delete
 ```

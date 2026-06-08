@@ -40,6 +40,22 @@ class Settings(BaseSettings):
     # Bir kamera bu süredir frame göndermiyorsa (camera_fps=0) offline sayılır.
     camera_offline_threshold_s: float = Field(default=60.0, ge=10.0, le=600.0)
 
+    # Disk doluluk izleme + snapshot retention (M7). Enterprise model: zaman-tabanlı
+    # budama (disk hiç dolmasın) + eşik alarmı (operatöre DMSS push). "Disk dolunca
+    # en eskiyi sil" baskı-altı FIFO YOK — ham video zaten Dahua NVR'ın işi.
+    disk_monitor_enabled: bool = Field(default=True)
+    # Disk kullanımı + snapshot dizini örnekleme periyodu (saniye).
+    disk_check_interval_s: float = Field(default=300.0, ge=30.0, le=3600.0)
+    # Disk doluluk eşiği (%). Aşılınca bir kez DMSS alarm + Grafana kırmızı.
+    disk_warn_threshold_pct: float = Field(default=85.0, ge=50.0, le=99.0)
+    # Histerezis: alarm ancak doluluk (eşik − margin) altına düşünce resetlenir
+    # (eşik etrafında flapping → tekrar tekrar alarm önlenir).
+    disk_recover_margin_pct: float = Field(default=5.0, ge=1.0, le=20.0)
+    # Bridge snapshot store retention (gün). Bu yaştan eski snapshot dosyaları silinir.
+    snapshot_retention_days: int = Field(default=90, ge=1, le=3650)
+    # Snapshot budama periyodu (saniye) — disk check'ten bağımsız, daha seyrek.
+    snapshot_prune_interval_s: float = Field(default=3600.0, ge=60.0, le=86400.0)
+
     # Dahua (M4) — NVR'a external alarm push. docs/05-dahua-integration.md
     dahua_nvr_host: str = Field(default="")
     dahua_nvr_port: int = Field(default=80, ge=1, le=65535)

@@ -16,6 +16,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M7 — Disk doluluk alarmı + snapshot retention**
+- `bridge/bridge/disk.py` — `DiskMonitor`: enterprise model (baskı-altı "dolunca en eskiyi sil" FIFO **değil**). (1) **Zaman-tabanlı budama** — bridge snapshot store'da `snapshot_retention_days`'ten (default 90g) eski dosyalar `snapshot_prune_interval_s` (default saatlik) periyodunda silinir → disk bizden hiç dolmaz; (2) **Doluluk eşiği** — `shutil.disk_usage` ile snapshot dizininin fs'i izlenir, `disk_warn_threshold_pct` (default %85) aşılınca **bir kez** Dahua external alarm (`disk_full`) → DMSS; histerezis (`disk_recover_margin_pct`) ile eşik etrafında flapping önlenir, doluluk (eşik−margin) altına düşünce flag resetlenir (kamera offline ile aynı tek-uyarı/recovery deseni).
+- `bridge/alembic/versions/0003_disk_status.py` + `db/schema.sql` — `disk_status` tablosu (mount başına tek satır, restart-safe `alert_sent`).
+- `bridge/bridge/db.py` — `get_disk_status` / `upsert_disk_status` (alert_sent çakışmada korunur) / `set_disk_alert_sent`.
+- `bridge/bridge/main.py` — `_disk_monitor_loop` worker (`disk_monitor_enabled` switch); `bridge/snapshots.py` — `SnapshotStore.base_dir` property (tek doğruluk kaynağı).
+- `grafana/dashboards/ainvr-overview.json` — "Disk Doluluk (%)" (eşik renkli) + "Snapshot Disk" + "Disk Durumu" panelleri (panel 11-13).
+- Doluluk yüzdesi **`df Use%` ile aynı tabanda** (`used/(used+free)`, fiziksel `total` değil) — ext4 %5 root-rezerve bloğu nedeniyle operatörün df/Grafana'da gördüğü değerle tutarlı (review bulgusu).
+- Blocking fs ops (`os.walk` budama + boyut, `shutil.disk_usage`) `asyncio.to_thread` ile event loop dışında; `usage_fn` enjekte edilebilir → **15 unit test** (eşik/tam-sınır/histerezis/recovery/margin-override/byte-arg-sırası/alarm-hatası/budama/throttle/eksik-dizin), toplam 128. Adversarial review (4 boyut × doğrulama) → 5 bulgu giderildi.
+- Ham video FIFO **kapsam dışı**: kayıt Dahua NVR'da (`frigate record.enabled=false`), NVR ring-buffer'ı native yönetir. Docs: `docs/08-operations.md > Disk Doluluk + Snapshot Retention`, `.env.example`, ROADMAP M7.
+
 **M5 — Performans test harness**
 - `bridge/bridge/perf.py` — stack ayaktayken Frigate `/api/stats` + `docker stats` periyodik örnekler; M5 kriterlerine göre pass/fail: **RAM stabil** (container bellek büyümesi ≤%20), **CPU başı boş** (detector p95 inference ≤200ms → aşımı Coral USB sinyali), **kaçan olay <%5** (kamera skipped/decode ≤%5). Çıktı: CSV (long-format zaman serisi) + JSON (özet) + stdout tablo + exit code (CI/cron uyumlu). Eşikler CLI ile override.
 - `Makefile` `perf` hedefi (`make perf ARGS="..."`); default Frigate URL `localhost:5100` (compose `5100:5000` — host 5000 macOS AirPlay'de çakışır).

@@ -179,7 +179,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [x] **Operasyon runbook** (`docs/08-operations.md`) — gerçek stack'e göre yeniden yazıldı: servisler, izleme (Grafana panelleri), DMSS bildirim, kamera offline davranışı, backup stratejisi + named volume'lar, restart & recovery (migrate + zone/door/camera), sorun giderme (Colima/Ollama/Dahua/Postgres). PR #19.
 - [x] Backup stratejisi + log rotation — runbook'ta dokümante (Postgres pg_dump cron, volume arşivleme, snapshot retention; log rotation docker json-file ile zaten sınırlı). _(Otomatik script/off-site kurulumu deploy ortamına bırakıldı.)_
 - [ ] Frigate-down alert (kamera ≠ Frigate; servis LWT `frigate/available`)
-- [ ] Disk doluluk alarmı (Grafana) — LLM bütçe alarmı **geçersiz** (Ollama lokal $0)
+- [x] **Disk doluluk alarmı + snapshot retention** — `bridge/disk.py` `DiskMonitor`: zaman-tabanlı snapshot budama (`snapshot_retention_days`, disk bizden hiç dolmaz) + disk doluluk eşiği (`disk_warn_threshold_pct`, histerezisli tek-uyarı) → Dahua/DMSS alarm (kamera offline ile aynı yol) + `disk_status` tablosu + Grafana "Disk Doluluk" paneli. Ham video FIFO **kapsam dışı** (NVR'ın işi). LLM bütçe alarmı **geçersiz** (Ollama lokal $0). alembic `0003`.
 - [ ] Sistem restart senaryosu **otomatik test** (recovery davranışı runbook'ta dokümante)
 
 **Doğrulama**: 1 hafta dokunmadan stabil. (Kamera offline ✅ — CameraMonitor canlı `/api/stats` + `camera_status` upsert doğrulandı, 5 kamera online.)

@@ -91,3 +91,19 @@ CREATE TABLE IF NOT EXISTS camera_status (
     offline_alert_sent BOOLEAN DEFAULT FALSE,
     metadata JSONB DEFAULT '{}'::jsonb
 );
+
+-- Disk doluluk izleme (M7, alembic 0003). DiskMonitor mount başına tek satır
+-- upsert eder; Grafana "Disk Doluluk" paneli buradan okur.
+CREATE TABLE IF NOT EXISTS disk_status (
+    mount TEXT PRIMARY KEY,
+    checked_at TIMESTAMPTZ,
+    used_pct REAL NOT NULL DEFAULT 0,
+    used_bytes BIGINT NOT NULL DEFAULT 0,
+    total_bytes BIGINT NOT NULL DEFAULT 0,
+    snapshot_bytes BIGINT NOT NULL DEFAULT 0,
+    snapshot_files INTEGER NOT NULL DEFAULT 0,
+    last_pruned_at TIMESTAMPTZ,
+    pruned_files_last INTEGER NOT NULL DEFAULT 0,
+    alert_sent BOOLEAN NOT NULL DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb
+);
