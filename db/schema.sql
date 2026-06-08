@@ -107,3 +107,13 @@ CREATE TABLE IF NOT EXISTS disk_status (
     alert_sent BOOLEAN NOT NULL DEFAULT FALSE,
     metadata JSONB DEFAULT '{}'::jsonb
 );
+
+-- Servis down-detection (M7, alembic 0004). FrigateMonitor `frigate/available`
+-- LWT'sinden servis durumunu yazar; Grafana "Frigate Servisi" paneli buradan okur.
+CREATE TABLE IF NOT EXISTS service_status (
+    service TEXT PRIMARY KEY,
+    is_online BOOLEAN NOT NULL DEFAULT FALSE,
+    last_change_at TIMESTAMPTZ,
+    offline_alert_sent BOOLEAN NOT NULL DEFAULT FALSE,
+    metadata JSONB DEFAULT '{}'::jsonb
+);

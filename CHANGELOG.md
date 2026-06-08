@@ -16,6 +16,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M7 — Frigate-down alert (servis LWT)**
+- `bridge/bridge/frigate_monitor.py` — `FrigateMonitor`: Frigate'in MQTT availability topic'i (`frigate/available`, retained + LWT, `online`/`offline`) dinlenir. `offline` (Frigate çöker → broker LWT yayınlar) → **bir kez** Dahua external alarm (`frigate_offline`) → DMSS; tek-uyarı + recovery (kamera offline deseni). Kapatılan boşluk: `CameraMonitor` Frigate down iken kameraları **kasıtlı** offline işaretlemez (Frigate down ≠ kamera down), dolayısıyla Frigate çökünce sistem şimdiye dek sessizdi.
+- `bridge/bridge/mqtt.py` — `listen()` çoklu-topic abonelik (tek bağlantı/identifier üzerinden `frigate/events` + `frigate/available`); `main.py` `_listen_loop` topic'e göre yönlendirir (`message.topic.matches`).
+- `bridge/alembic/versions/0004_service_status.py` + `db/schema.sql` + `db.py` — `service_status` tablosu (servis başına satır, restart-safe `offline_alert_sent`) + `get/mark_service_online/offline`.
+- `grafana/dashboards/ainvr-overview.json` — "Frigate Servisi" stat paneli (ÇEVRİMİÇİ/ÇEVRİMDIŞI value-mapping, panel 14).
+- `config.py` + `.env.example` — `frigate_monitor_enabled` switch. **10 unit test** (online/offline/tek-uyarı/recovery/realarm/channel/alarm-hatası/no-dahua/case-whitespace/bilinmeyen-payload/last_change_at-transition), toplam 138.
+- Adversarial review (3 boyut × doğrulama) → 3 nit giderildi: `last_change_at` yalnız gerçek durum geçişinde güncellenir (retained redelivery / reconnect'te kaymaz, DB `CASE WHEN`); Grafana paneli `noValue` ("BİLİNMİYOR") ile ilk mesaj öncesi "No data" yerine anlamlı gösterir.
+
 **M7 — Disk doluluk alarmı + snapshot retention**
 - `bridge/bridge/disk.py` — `DiskMonitor`: enterprise model (baskı-altı "dolunca en eskiyi sil" FIFO **değil**). (1) **Zaman-tabanlı budama** — bridge snapshot store'da `snapshot_retention_days`'ten (default 90g) eski dosyalar `snapshot_prune_interval_s` (default saatlik) periyodunda silinir → disk bizden hiç dolmaz; (2) **Doluluk eşiği** — `shutil.disk_usage` ile snapshot dizininin fs'i izlenir, `disk_warn_threshold_pct` (default %85) aşılınca **bir kez** Dahua external alarm (`disk_full`) → DMSS; histerezis (`disk_recover_margin_pct`) ile eşik etrafında flapping önlenir, doluluk (eşik−margin) altına düşünce flag resetlenir (kamera offline ile aynı tek-uyarı/recovery deseni).
 - `bridge/alembic/versions/0003_disk_status.py` + `db/schema.sql` — `disk_status` tablosu (mount başına tek satır, restart-safe `alert_sent`).

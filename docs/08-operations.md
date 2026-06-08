@@ -66,6 +66,7 @@ docker compose logs -f bridge
 | Zone ilk giriş (alarm_emitted) | Dahua external alarm → DMSS |
 | Kapı geçişi (giriş/çıkış) | Dahua external alarm → DMSS |
 | **Kamera offline** | Dahua external alarm (`camera_offline`) → DMSS + Grafana paneli |
+| **Frigate servisi down** | `FrigateMonitor` `frigate/available` LWT offline → Dahua external alarm (`frigate_offline`) → DMSS + Grafana "Frigate Servisi" paneli |
 | **Disk doluluk** | `DiskMonitor` eşik (`disk_warn_threshold_pct`, default %85) → Dahua external alarm (`disk_full`) → DMSS + Grafana "Disk Doluluk" paneli |
 | RAM | Grafana panel (opsiyonel) — perf harness ayrıca raporlar |
 
@@ -84,6 +85,20 @@ Durum sorgusu:
 ```bash
 docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
   -c "SELECT camera_id, is_online, last_seen_at FROM camera_status ORDER BY is_online, camera_id;"
+```
+
+### Frigate Servisi Down (gerçek davranış)
+
+`CameraMonitor` Frigate'i poll edip kameraları izler ama Frigate'in **kendisi** düşerse kameraları offline işaretlemez (Frigate down ≠ kamera down) — o boşluğu `FrigateMonitor` (`bridge/frigate_monitor.py`) kapatır. Frigate'in MQTT **availability** topic'i (`frigate/available`, retained + LWT, payload `online`/`offline`) dinlenir:
+
+- `offline` (Frigate çöker → broker LWT yayınlar) → **bir kez** Dahua external alarm (`frigate_offline`) → DMSS. Tek-uyarı; `online` (recovery) gelince flag resetlenir, tekrar düşerse yeniden uyarır.
+- Olay-tabanlı (MQTT), poll değil — availability anında bilinir. Durum `service_status` tablosunda (restart-safe: retained `offline` tekrar gelse de `offline_alert_sent` mükerrer alarmı önler). Grafana "Frigate Servisi" paneli buradan okur.
+- Bridge MQTT'ye `frigate/events` + `frigate/available` topic'lerine tek bağlantıyla abone olur; `frigate_monitor_enabled=false` ile devre dışı bırakılabilir.
+
+Durum sorgusu:
+```bash
+docker compose exec postgres psql -U $POSTGRES_USER -d $POSTGRES_DB \
+  -c "SELECT service, is_online, last_change_at, offline_alert_sent FROM service_status;"
 ```
 
 ### Disk Doluluk + Snapshot Retention (gerçek davranış)

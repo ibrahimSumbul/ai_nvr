@@ -448,3 +448,60 @@ class Database:
                 mount,
                 sent,
             )
+
+    # ---- Service status (M7 — Frigate down-detection) ----
+
+    async def get_service_status(self, service: str) -> dict[str, Any] | None:
+        """Bir servisin son durumu (alarm kararı için is_online + offline_alert_sent)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT service, is_online, last_change_at, offline_alert_sent
+                FROM service_status WHERE service = $1
+                """,
+                service,
+            )
+            return dict(row) if row else None
+
+    async def mark_service_online(self, service: str, now: datetime) -> None:
+        """Servis online (available=online): online işaretle, alert flag reset.
+
+        `last_change_at` yalnız gerçek geçişte (offline→online) güncellenir; zaten
+        online iken (retained redelivery / reconnect) korunur → kolon 'son DEĞİŞİM'
+        semantiğini tutar, 'son mesaj' zamanına kaymaz.
+        """
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO service_status (service, is_online, last_change_at, offline_alert_sent)
+                VALUES ($1, TRUE, $2, FALSE)
+                ON CONFLICT (service) DO UPDATE
+                SET is_online = TRUE,
+                    last_change_at = CASE WHEN service_status.is_online
+                        THEN service_status.last_change_at ELSE $2 END,
+                    offline_alert_sent = FALSE
+                """,
+                service,
+                now,
+            )
+
+    async def mark_service_offline(self, service: str, now: datetime) -> None:
+        """Servis offline (available=offline / LWT): offline + alert gönderildi işaretle.
+
+        `last_change_at` yalnız gerçek geçişte (online→offline) güncellenir; zaten
+        offline iken (tekrar mesaj / restart retained) korunur.
+        """
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO service_status (service, is_online, last_change_at, offline_alert_sent)
+                VALUES ($1, FALSE, $2, TRUE)
+                ON CONFLICT (service) DO UPDATE
+                SET is_online = FALSE,
+                    last_change_at = CASE WHEN service_status.is_online
+                        THEN $2 ELSE service_status.last_change_at END,
+                    offline_alert_sent = TRUE
+                """,
+                service,
+                now,
+            )

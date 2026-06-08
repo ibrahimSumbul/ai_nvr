@@ -405,6 +405,22 @@
           "rawSql": "SELECT mount AS \"Mount\", used_pct AS \"Doluluk %\", snapshot_files AS \"Snapshot Dosya\", pruned_files_last AS \"Son Budanan\", last_pruned_at AS \"Son Budama\", checked_at AS \"Kontrol\" FROM disk_status ORDER BY used_pct DESC"
         }
       ]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Frigate Servisi",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 33 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "noValue": "BİLİNMİYOR (veri yok)", "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "0": { "text": "ÇEVRİMDIŞI", "color": "red" }, "1": { "text": "ÇEVRİMİÇİ", "color": "green" } } }] } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN is_online THEN 1 ELSE 0 END AS \"deger\" FROM service_status WHERE service = 'frigate'"
+        }
+      ]
     }
   ]
 }

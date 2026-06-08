@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Snapshot budama periyodu (saniye) — disk check'ten bağımsız, daha seyrek.
     snapshot_prune_interval_s: float = Field(default=3600.0, ge=60.0, le=86400.0)
 
+    # Frigate servis down-detection (M7). `frigate/available` LWT dinlenir; offline →
+    # Dahua/DMSS alarm (kamera offline ≠ Frigate offline boşluğunu kapatır).
+    frigate_monitor_enabled: bool = Field(default=True)
+
     # Dahua (M4) — NVR'a external alarm push. docs/05-dahua-integration.md
     dahua_nvr_host: str = Field(default="")
     dahua_nvr_port: int = Field(default=80, ge=1, le=65535)
