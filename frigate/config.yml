@@ -19,9 +19,13 @@ mqtt:
   password: '{FRIGATE_MQTT_PASSWORD}'
   topic_prefix: frigate
 
-# CPU detector — M6'da Coral USB'ye geçilir
+# CPU detector(ler) — M6'da Coral USB'ye geçilir.
+# Test 1 / M5: 6 kamera @5fps — tek kuyruk yetişemeyince skip fırlıyordu; 2. detector paralellik.
 detectors:
   cpu1:
+    type: cpu
+    num_threads: 3
+  cpu2:
     type: cpu
     num_threads: 3
 

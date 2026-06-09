@@ -1,0 +1,50 @@
+2026-06-10 00:15:26 [info     ] perf.sample                    n=1
+2026-06-10 00:15:59 [info     ] perf.sample                    n=2
+2026-06-10 00:16:32 [info     ] perf.sample                    n=3
+2026-06-10 00:17:05 [info     ] perf.sample                    n=4
+2026-06-10 00:17:38 [info     ] perf.sample                    n=5
+2026-06-10 00:18:10 [info     ] perf.sample                    n=6
+2026-06-10 00:18:44 [info     ] perf.sample                    n=7
+2026-06-10 00:19:16 [info     ] perf.sample                    n=8
+2026-06-10 00:19:49 [info     ] perf.sample                    n=9
+2026-06-10 00:20:23 [info     ] perf.sample                    n=10
+2026-06-10 00:20:56 [info     ] perf.sample                    n=11
+2026-06-10 00:21:29 [info     ] perf.sample                    n=12
+2026-06-10 00:22:02 [info     ] perf.sample                    n=13
+2026-06-10 00:22:35 [info     ] perf.sample                    n=14
+2026-06-10 00:23:08 [info     ] perf.sample                    n=15
+2026-06-10 00:23:41 [info     ] perf.sample                    n=16
+2026-06-10 00:24:14 [info     ] perf.sample                    n=17
+2026-06-10 00:24:46 [info     ] perf.sample                    n=18
+2026-06-10 00:25:19 [info     ] perf.sample                    n=19
+2026-06-10 00:25:26 [info     ] perf.sample                    n=20
+2026-06-10 00:25:26 [info     ] perf.written                   csv=../perf/runs/test1/trial-20260610.csv json=../perf/runs/test1/trial-20260610.json
+Perf testi: 20 örnek, 600s
+
+Container          CPU% ort/maks    RAM MB ort/maks    Büyüme
+  ainvr-bridge        0.7/6.7          43/47       +32.7%
+  ainvr-frigate     646.7/757.0      1299/1322     +5.9%
+  ainvr-grafana       0.5/3.7         188/194      -3.8%
+  ainvr-mqtt          0.4/2.7          13/13       +0.5%
+  ainvr-postgres      1.0/6.1          45/45       +1.6%
+  mediamtx           12.7/103.7        30/30       +0.9%
+  mediamtx-publisher    7.9/41.3         75/76       +1.5%
+
+Detector           inference ms ort/p95/maks
+  cpu1               72.1/ 247.8/441.4
+  cpu2               70.8/ 227.7/454.0
+
+Kamera             fps min/ort    atlanan% ort/p95
+  cam_depo          5.0/5.0    49.7/78.0
+  cam_kapi          5.0/5.0    10.8/49.0
+  cam_magaza        5.0/5.0    29.6/66.0
+  cam_test          4.7/5.2    47.8/72.5
+  cam_tir           5.0/5.0     0.6/2.0
+  cam_yaya          4.8/5.1    28.8/51.0
+
+Sonuç:
+  ✗ RAM stabil: en yüksek bellek büyümesi +32.7% (ainvr-bridge), eşik 20%
+  ✗ CPU başı boş: detector p95 inference 248ms, eşik 200ms
+  ✗ Kaçan olay <%5: en yüksek p95 atlanan-frame oranı 78.0% (cam_depo), eşik 5%
+
+KALDI ❌
