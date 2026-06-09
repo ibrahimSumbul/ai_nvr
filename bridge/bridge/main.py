@@ -28,8 +28,10 @@ from bridge.dahua import (
     dahua_inline_worst_case_seconds,
 )
 from bridge.db import Database
+from bridge.disk import DiskMonitor
 from bridge.doors import DoorStateMachine
 from bridge.events import FrigateEvent
+from bridge.frigate_monitor import FrigateMonitor
 from bridge.llm import build_llm_client
 from bridge.mqtt import MqttClient
 from bridge.snapshots import SnapshotStore
@@ -106,6 +108,22 @@ async def run(settings: Settings) -> None:
     camera_channels = {z.camera: z.rules.dahua_channel for z in zones_cfg.zones}
     camera_monitor = CameraMonitor(settings, db, dahua=dahua, camera_channels=camera_channels)
 
+    # M7 — disk doluluk izleme + snapshot retention budama. Snapshot store'un
+    # kök dizininin dosya sistemi izlenir; eşik aşılınca DMSS alarm (kamera
+    # offline ile aynı yol). Budama disk'i bizim tarafımızdan hiç doldurmaz.
+    disk_monitor = DiskMonitor(settings, db, snapshots.base_dir, dahua=dahua)
+
+    # M7 — Frigate servis down-detection. `frigate/available` LWT dinlenir; Frigate
+    # çökerse (broker offline yayınlar) DMSS alarm (kamera offline ≠ Frigate offline).
+    frigate_monitor = (
+        FrigateMonitor(db, dahua=dahua, channel=settings.dahua_alarm_channel)
+        if settings.frigate_monitor_enabled
+        else None
+    )
+    listen_topics = (
+        ["frigate/events", "frigate/available"] if frigate_monitor else ["frigate/events"]
+    )
+
     # State recovery
     for zsm in state_machines.values():
         await zsm.restore_from_db()
@@ -131,11 +149,23 @@ async def run(settings: Settings) -> None:
         loop.add_signal_handler(sig, _handle_stop)
 
     listener = asyncio.create_task(
-        _listen_loop(mqtt, state_machines, cameras_to_zones, truck_handler, stop_event)
+        _listen_loop(
+            mqtt,
+            state_machines,
+            cameras_to_zones,
+            truck_handler,
+            frigate_monitor,
+            listen_topics,
+            stop_event,
+        )
     )
     ticker = asyncio.create_task(_tick_loop(state_machines, stop_event))
     camera_task = asyncio.create_task(_camera_monitor_loop(camera_monitor, settings, stop_event))
     tasks = [listener, ticker, camera_task]
+
+    # M7 — disk doluluk + snapshot budama worker
+    if settings.disk_monitor_enabled:
+        tasks.append(asyncio.create_task(_disk_monitor_loop(disk_monitor, settings, stop_event)))
 
     # M4 — pending Dahua alarm retry worker (yalnızca alarm aktifse)
     if dahua is not None:
@@ -165,12 +195,28 @@ async def _listen_loop(
     state_machines: dict[str, StateMachine],
     cameras_to_zones: dict[str, list[ZoneConfig]],
     truck_handler: TruckEventHandler,
+    frigate_monitor: FrigateMonitor | None,
+    topics: list[str],
     stop_event: asyncio.Event,
 ) -> None:
-    """MQTT event akışını state machine'lere ve truck handler'a dağıt."""
-    async for message in mqtt.listen("frigate/events"):
+    """MQTT akışını topic'e göre yönlendir: events → SM/truck, available → FrigateMonitor."""
+    async for message in mqtt.listen(topics):
         if stop_event.is_set():
             break
+
+        # M7 — Frigate servis sağlığı (frigate/available, payload online/offline)
+        if frigate_monitor is not None and message.topic.matches("frigate/available"):
+            payload_str = (
+                message.payload.decode(errors="replace")
+                if isinstance(message.payload, bytes)
+                else str(message.payload)
+            )
+            try:
+                await frigate_monitor.on_availability(payload_str)
+            except Exception as exc:  # noqa: BLE001
+                log.error("frigate.availability_handling_failed", error=str(exc))
+            continue
+
         if not message.payload:
             continue
         try:
@@ -302,6 +348,23 @@ async def _camera_monitor_loop(
                 await monitor.check()
             except Exception as exc:  # noqa: BLE001
                 log.error("camera.check_failed", error=str(exc))
+
+
+async def _disk_monitor_loop(
+    monitor: DiskMonitor,
+    settings: Settings,
+    stop_event: asyncio.Event,
+) -> None:
+    """Periyodik disk doluluk + snapshot budama (M7) — `disk_check_interval_s`."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=settings.disk_check_interval_s)
+            return  # stop_event geldi
+        except TimeoutError:
+            try:
+                await monitor.check()
+            except Exception as exc:  # noqa: BLE001
+                log.error("disk.check_failed", error=str(exc))
 
 
 def main() -> None:

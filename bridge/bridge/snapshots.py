@@ -31,6 +31,11 @@ class SnapshotStore:
             timeout=httpx.Timeout(timeout),
         )
 
+    @property
+    def base_dir(self) -> Path:
+        """Snapshot dosyalarının kök dizini (disk izleme + budama için)."""
+        return self._base_dir
+
     async def fetch_event_snapshot(self, event_id: str, height: int | None = None) -> Path | None:
         """Frigate event ID için snapshot'ı indir, diske yaz, path döndür.
 
