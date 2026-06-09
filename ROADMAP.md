@@ -188,7 +188,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ## Milestone 8: Adli Davranış Zekası (forensic behavioral intelligence) 🔬 tasarım
 
-**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**).
+**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**). Somut 5-kamera demo senaryosu (sahnelenecek/kodlanacak): [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md).
 
 **Statü**: spec ✅, kod ❌. Spec üç adversarial geçişle sertleştirildi (red-team / completeness / consistency). Build öncesi **bloker kararlar Appendix A'da çözüldü**: sessionization (per-zone), PII/KVKK saklama+profilleme, ROI BEFORE-frame kaynağı, degraded yol, idempotency.
 
