@@ -87,6 +87,36 @@ def test_truck_analysis_extra_fields_ignored() -> None:
     assert a.guven == 0.8
 
 
+def test_truck_analysis_turkish_unicode_normalized() -> None:
+    """Ollama Türkçe unicode renk döndürür ("sarı") → ASCII literal'e normalize."""
+    data = {
+        "tir_var_mi": True,
+        "cekici_rengi": "sarı",
+        "dorse_var_mi": True,
+        "dorse_rengi": "KIRMIZI",
+        "dorse_tipi": "açık",
+        "yon": "Çıkış",
+        "guven": 0.9,
+    }
+    a = TruckAnalysis.model_validate(data)
+    assert a.cekici_rengi == "sari"
+    assert a.dorse_rengi == "kirmizi"
+    assert a.dorse_tipi == "acik"
+    assert a.yon == "cikis"
+
+
+def test_truck_analysis_normalize_still_rejects_unknown() -> None:
+    """Normalize sonrası hâlâ listede olmayan değer → ValidationError."""
+    data = {
+        "tir_var_mi": True,
+        "cekici_rengi": "yeşilimsi",  # normalize → "yesilimsi", listede yok
+        "dorse_var_mi": False,
+        "guven": 0.5,
+    }
+    with pytest.raises(ValueError):
+        TruckAnalysis.model_validate(data)
+
+
 def test_truck_analysis_json_string_parse() -> None:
     """Direkt JSON string parse (LLM çıktısı)."""
     raw = '{"tir_var_mi": true, "dorse_var_mi": false, "guven": 0.7}'
