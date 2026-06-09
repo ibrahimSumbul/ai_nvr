@@ -156,7 +156,7 @@ cameras:
 
   # M3 truck E2E test kamerası — MediaMTX cam_tir.mp4 (tır geçiş videosu).
   # Reproduce: yt-dlp ile tır videosu indir → ffmpeg 640x480 (ORİJİNAL fps koru!
-  #   5fps Frigate watchdog'u tetikler) h264 GOP~2s → ~/Desktop/MediaMTX/videos/
+  #   5fps Frigate watchdog'u tetikler) h264 GOP~2s → ~/code/mediamtx/videos/
   #   cam_tir.mp4 → mediamtx-publisher restart.
   # NOT: zone'lu bu config'de detection + truck event çalışıyor. E2E debug'ında
   #   cam_tir zone'suz iken detection_fps=0 gözlendi; zone ekleyince başladı
