@@ -16,6 +16,7 @@ notu: dolunca-sil aktif olayı silebilir; enterprise disiplini diski hiç doldur
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import shutil
 from collections.abc import Callable
@@ -149,11 +150,18 @@ class DiskMonitor:
         )
 
     def _prune_snapshots(self, now: datetime) -> PruneResult:
-        """Retention'dan eski snapshot dosyalarını sil (blocking → to_thread)."""
+        """Retention'dan eski snapshot dosyalarını sil + boşalan dizinleri temizle.
+
+        Blocking → to_thread. `topdown=False`: alt dizinler önce işlenir, böylece
+        dosyaları silinip boşalan tarih dizini (`YYYY-MM-DD/`) aynı turda kaldırılır
+        → uzun ömürlü kurulumda boş dizin/inode birikmez. Yazıcı `mkdir(parents=True)`
+        ile yeniden oluşturduğu için kaldırma güvenli; kök snapshot dizini korunur.
+        """
         cutoff = (now - self._retention).timestamp()
+        root_dir = os.path.normpath(str(self._snapshot_dir))
         deleted = 0
         freed = 0
-        for root, _dirs, files in os.walk(self._snapshot_dir):
+        for root, _dirs, files in os.walk(self._snapshot_dir, topdown=False):
             for name in files:
                 fp = os.path.join(root, name)
                 try:
@@ -165,6 +173,11 @@ class DiskMonitor:
                         freed += size
                 except OSError as exc:  # dosya yarışı / izin — atla, turu bozma
                     log.warning("disk.prune_unlink_failed", path=fp, error=str(exc))
+            # Boşalan alt dizini kaldır (kök hariç). os.rmdir yalnız boş dizinde
+            # başarılı; dolu dizin / yazıcı yarışı → OSError, zararsızca atla.
+            if os.path.normpath(root) != root_dir:
+                with contextlib.suppress(OSError):
+                    os.rmdir(root)
         return PruneResult(deleted_files=deleted, freed_bytes=freed)
 
     async def _handle_threshold(self, used_pct: float) -> None:

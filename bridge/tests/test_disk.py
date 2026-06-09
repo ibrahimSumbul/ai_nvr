@@ -9,7 +9,7 @@ from typing import Any
 
 from bridge.config import Settings
 from bridge.dahua import DahuaAlarmError
-from bridge.disk import DiskMonitor
+from bridge.disk import DiskMonitor, _disk_usage
 
 
 class FakeDB:
@@ -359,3 +359,34 @@ async def test_missing_snapshot_dir_is_safe(tmp_path: Path) -> None:
 
     assert db.rows[m.mount]["snapshot_files"] == 0
     assert db.rows[m.mount]["pruned_files_last"] == 0
+
+
+async def test_prune_removes_emptied_dirs_keeps_root_and_nonempty(tmp_path: Path) -> None:
+    """Budama dosyaları silince boşalan tarih dizini de kaldırılır; kök ve taze
+    dosya içeren dizin korunur (boş dizin/inode birikmesini önler)."""
+    db = FakeDB()
+    now = datetime(2026, 1, 1, 9, 0, 0, tzinfo=UTC)
+    clock = Clock(now)
+    cutoff = (now - timedelta(days=90)).timestamp()
+    _write(tmp_path / "2025-09-01" / "old.jpg", cutoff - 86400)  # eski → silinir
+    _write(tmp_path / "2026-01-01" / "new.jpg", cutoff + 86400)  # taze → kalır
+    m = _monitor(db, tmp_path, clock, pct=10.0)
+
+    await m.check()
+
+    assert not (tmp_path / "2025-09-01").exists()  # boşalan dizin kaldırıldı
+    assert (tmp_path / "2026-01-01").exists()  # taze dosyalı dizin korundu
+    assert (tmp_path / "2026-01-01" / "new.jpg").exists()
+    assert tmp_path.exists()  # kök snapshot dizini her zaman korunur
+
+
+def test_disk_usage_real_path_and_missing_fallback(tmp_path: Path) -> None:
+    """Üretimdeki `_disk_usage` (testlerde normalde usage_fn ile baypas edilir):
+    var olan yol ölçülür; var olmayan alt yol en yakın üst dizine düşer (crash yok)."""
+    total, used, free = _disk_usage(str(tmp_path))
+    assert total > 0 and used >= 0 and free >= 0
+    assert used + free <= total  # df tabanı (used+free) fiziksel total'ı aşmaz
+
+    missing = tmp_path / "henuz" / "yok" / "snapshots"
+    t2, _u2, _f2 = _disk_usage(str(missing))
+    assert t2 > 0  # var olmayan yol → üst dizinin fs'i raporlandı (fallback çalıştı)

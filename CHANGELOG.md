@@ -21,7 +21,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 - `bridge/bridge/mqtt.py` — `listen()` çoklu-topic abonelik (tek bağlantı/identifier üzerinden `frigate/events` + `frigate/available`); `main.py` `_listen_loop` topic'e göre yönlendirir (`message.topic.matches`).
 - `bridge/alembic/versions/0004_service_status.py` + `db/schema.sql` + `db.py` — `service_status` tablosu (servis başına satır, restart-safe `offline_alert_sent`) + `get/mark_service_online/offline`.
 - `grafana/dashboards/ainvr-overview.json` — "Frigate Servisi" stat paneli (ÇEVRİMİÇİ/ÇEVRİMDIŞI value-mapping, panel 14).
-- `config.py` + `.env.example` — `frigate_monitor_enabled` switch. **10 unit test** (online/offline/tek-uyarı/recovery/realarm/channel/alarm-hatası/no-dahua/case-whitespace/bilinmeyen-payload/last_change_at-transition), toplam 138.
+- `config.py` + `.env.example` — `frigate_monitor_enabled` switch. **10 unit test** (online/offline/tek-uyarı/recovery/realarm/channel/alarm-hatası/no-dahua/case-whitespace/bilinmeyen-payload/last_change_at-transition), toplam 140.
 - Adversarial review (3 boyut × doğrulama) → 3 nit giderildi: `last_change_at` yalnız gerçek durum geçişinde güncellenir (retained redelivery / reconnect'te kaymaz, DB `CASE WHEN`); Grafana paneli `noValue` ("BİLİNMİYOR") ile ilk mesaj öncesi "No data" yerine anlamlı gösterir.
 
 **M7 — Disk doluluk alarmı + snapshot retention**
@@ -31,7 +31,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 - `bridge/bridge/main.py` — `_disk_monitor_loop` worker (`disk_monitor_enabled` switch); `bridge/snapshots.py` — `SnapshotStore.base_dir` property (tek doğruluk kaynağı).
 - `grafana/dashboards/ainvr-overview.json` — "Disk Doluluk (%)" (eşik renkli) + "Snapshot Disk" + "Disk Durumu" panelleri (panel 11-13).
 - Doluluk yüzdesi **`df Use%` ile aynı tabanda** (`used/(used+free)`, fiziksel `total` değil) — ext4 %5 root-rezerve bloğu nedeniyle operatörün df/Grafana'da gördüğü değerle tutarlı (review bulgusu).
-- Blocking fs ops (`os.walk` budama + boyut, `shutil.disk_usage`) `asyncio.to_thread` ile event loop dışında; `usage_fn` enjekte edilebilir → **15 unit test** (eşik/tam-sınır/histerezis/recovery/margin-override/byte-arg-sırası/alarm-hatası/budama/throttle/eksik-dizin), toplam 128. Adversarial review (4 boyut × doğrulama) → 5 bulgu giderildi.
+- Blocking fs ops (`os.walk` budama + boyut, `shutil.disk_usage`) `asyncio.to_thread` ile event loop dışında; `usage_fn` enjekte edilebilir → **17 unit test** (eşik/tam-sınır/histerezis/recovery/margin-override/byte-arg-sırası/alarm-hatası/budama/throttle/eksik-dizin/boş-dizin-temizleme/gerçek-disk_usage-fallback), toplam 130. Snapshot budama boşalan tarih dizinlerini de kaldırır (boş dizin/inode birikmez). Adversarial review (4 boyut × doğrulama) → 5 bulgu giderildi.
 - Ham video FIFO **kapsam dışı**: kayıt Dahua NVR'da (`frigate record.enabled=false`), NVR ring-buffer'ı native yönetir. Docs: `docs/08-operations.md > Disk Doluluk + Snapshot Retention`, `.env.example`, ROADMAP M7.
 
 **M5 — Performans test harness**

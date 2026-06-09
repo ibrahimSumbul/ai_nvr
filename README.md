@@ -3,7 +3,7 @@
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
 [![Faz: M6.5 tamam · M7 sürüyor](https://img.shields.io/badge/Faz-M6.5%20tamam%20·%20M7%20sürüyor-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
-[![Test: 138 unit · ruff · mypy strict](https://img.shields.io/badge/Test-138%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
+[![Test: 140 unit · ruff · mypy strict](https://img.shields.io/badge/Test-140%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/commits/main)
 [![Issues](https://img.shields.io/github/issues/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/issues)
