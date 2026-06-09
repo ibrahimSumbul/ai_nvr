@@ -178,8 +178,8 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [x] **Kamera offline → Dahua/DMSS alarm + Grafana paneli** — offline'da external alarm (kamera→NVR channel zones.yaml'dan, best-effort) + dashboard'da "Çevrimdışı Kamera" stat + "Kamera Durumu" tablosu. PR #18.
 - [x] **Operasyon runbook** (`docs/08-operations.md`) — gerçek stack'e göre yeniden yazıldı: servisler, izleme (Grafana panelleri), DMSS bildirim, kamera offline davranışı, backup stratejisi + named volume'lar, restart & recovery (migrate + zone/door/camera), sorun giderme (Colima/Ollama/Dahua/Postgres). PR #19.
 - [x] Backup stratejisi + log rotation — runbook'ta dokümante (Postgres pg_dump cron, volume arşivleme, snapshot retention; log rotation docker json-file ile zaten sınırlı). _(Otomatik script/off-site kurulumu deploy ortamına bırakıldı.)_
-- [ ] Frigate-down alert (kamera ≠ Frigate; servis LWT `frigate/available`)
-- [ ] Disk doluluk alarmı (Grafana) — LLM bütçe alarmı **geçersiz** (Ollama lokal $0)
+- [x] **Frigate-down alert** — `bridge/frigate_monitor.py` `FrigateMonitor`: `frigate/available` LWT (retained `online`/`offline`) dinlenir; offline → Dahua/DMSS alarm (`frigate_offline`, tek-uyarı + recovery) + `service_status` tablosu (restart-safe) + Grafana "Frigate Servisi" paneli. Kamera offline ≠ Frigate offline boşluğunu kapatır (CameraMonitor Frigate down iken kasıtlı sessiz). MQTT çoklu-topic abonelik. alembic `0004`.
+- [x] **Disk doluluk alarmı + snapshot retention** — `bridge/disk.py` `DiskMonitor`: zaman-tabanlı snapshot budama (`snapshot_retention_days`, disk bizden hiç dolmaz) + disk doluluk eşiği (`disk_warn_threshold_pct`, histerezisli tek-uyarı) → Dahua/DMSS alarm (kamera offline ile aynı yol) + `disk_status` tablosu + Grafana "Disk Doluluk" paneli. Ham video FIFO **kapsam dışı** (NVR'ın işi). LLM bütçe alarmı **geçersiz** (Ollama lokal $0). alembic `0003`.
 - [ ] Sistem restart senaryosu **otomatik test** (recovery davranışı runbook'ta dokümante)
 
 **Doğrulama**: 1 hafta dokunmadan stabil. (Kamera offline ✅ — CameraMonitor canlı `/api/stats` + `camera_status` upsert doğrulandı, 5 kamera online.)
@@ -188,7 +188,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ## Milestone 8: Adli Davranış Zekası (forensic behavioral intelligence) 🔬 tasarım
 
-**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**).
+**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**). Somut 5-kamera demo senaryosu (sahnelenecek/kodlanacak): [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md).
 
 **Statü**: spec ✅, kod ❌. Spec üç adversarial geçişle sertleştirildi (red-team / completeness / consistency). Build öncesi **bloker kararlar Appendix A'da çözüldü**: sessionization (per-zone), PII/KVKK saklama+profilleme, ROI BEFORE-frame kaynağı, degraded yol, idempotency.
 

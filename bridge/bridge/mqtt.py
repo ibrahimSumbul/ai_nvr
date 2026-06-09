@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 
 import aiomqtt
 import structlog
@@ -19,16 +19,21 @@ class MqttClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    async def listen(self, topic: str = "frigate/#") -> AsyncIterator[aiomqtt.Message]:
-        """MQTT'ye bağlan ve topic'e abone ol — message stream döndür.
+    async def listen(
+        self, topics: str | Sequence[str] = "frigate/#"
+    ) -> AsyncIterator[aiomqtt.Message]:
+        """MQTT'ye bağlan ve topic('ler)e abone ol — message stream döndür.
 
+        Tek bağlantı/identifier üzerinden birden çok topic'e abone olunur (örn.
+        `frigate/events` + `frigate/available`); çağıran `message.topic` ile yönlendirir.
         Bağlantı kopunca exponential backoff ile yeniden dener (1s → 30s).
         """
+        topic_list = [topics] if isinstance(topics, str) else list(topics)
         log.info(
             "mqtt.connecting",
             host=self._settings.mqtt_host,
             port=self._settings.mqtt_port,
-            topic=topic,
+            topics=topic_list,
         )
         retry_delay = 1
         while True:
@@ -40,9 +45,10 @@ class MqttClient:
                     password=self._settings.mqtt_password or None,
                     identifier="ainvr-bridge",
                 ) as client:
-                    log.info("mqtt.connected", topic=topic)
+                    log.info("mqtt.connected", topics=topic_list)
                     retry_delay = 1
-                    await client.subscribe(topic)
+                    for t in topic_list:
+                        await client.subscribe(t)
                     async for message in client.messages:
                         yield message
             except aiomqtt.MqttError as exc:

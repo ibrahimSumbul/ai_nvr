@@ -387,3 +387,121 @@ class Database:
                 """,
                 camera_id,
             )
+
+    # ---- Disk status (M7) ----
+
+    async def get_disk_status(self, mount: str) -> dict[str, Any] | None:
+        """Bir mount'un son durumu (eşik kararı için used_pct + alert_sent)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT mount, checked_at, used_pct, used_bytes, total_bytes,
+                       snapshot_bytes, snapshot_files, last_pruned_at,
+                       pruned_files_last, alert_sent
+                FROM disk_status WHERE mount = $1
+                """,
+                mount,
+            )
+            return dict(row) if row else None
+
+    async def upsert_disk_status(
+        self,
+        mount: str,
+        checked_at: datetime,
+        used_pct: float,
+        used_bytes: int,
+        total_bytes: int,
+        snapshot_bytes: int,
+        snapshot_files: int,
+        last_pruned_at: datetime | None,
+        pruned_files_last: int,
+    ) -> None:
+        """Ölçümleri yaz. `alert_sent` ÇAKIŞMADA korunur (eşik mantığı ayrı yönetir)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO disk_status (
+                    mount, checked_at, used_pct, used_bytes, total_bytes,
+                    snapshot_bytes, snapshot_files, last_pruned_at, pruned_files_last
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (mount) DO UPDATE SET
+                    checked_at = $2, used_pct = $3, used_bytes = $4, total_bytes = $5,
+                    snapshot_bytes = $6, snapshot_files = $7,
+                    last_pruned_at = $8, pruned_files_last = $9
+                """,
+                mount,
+                checked_at,
+                used_pct,
+                used_bytes,
+                total_bytes,
+                snapshot_bytes,
+                snapshot_files,
+                last_pruned_at,
+                pruned_files_last,
+            )
+
+    async def set_disk_alert_sent(self, mount: str, sent: bool) -> None:
+        """Eşik alarmı tek-uyarı/recovery flag'i (restart-safe)."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE disk_status SET alert_sent = $2 WHERE mount = $1",
+                mount,
+                sent,
+            )
+
+    # ---- Service status (M7 — Frigate down-detection) ----
+
+    async def get_service_status(self, service: str) -> dict[str, Any] | None:
+        """Bir servisin son durumu (alarm kararı için is_online + offline_alert_sent)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT service, is_online, last_change_at, offline_alert_sent
+                FROM service_status WHERE service = $1
+                """,
+                service,
+            )
+            return dict(row) if row else None
+
+    async def mark_service_online(self, service: str, now: datetime) -> None:
+        """Servis online (available=online): online işaretle, alert flag reset.
+
+        `last_change_at` yalnız gerçek geçişte (offline→online) güncellenir; zaten
+        online iken (retained redelivery / reconnect) korunur → kolon 'son DEĞİŞİM'
+        semantiğini tutar, 'son mesaj' zamanına kaymaz.
+        """
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO service_status (service, is_online, last_change_at, offline_alert_sent)
+                VALUES ($1, TRUE, $2, FALSE)
+                ON CONFLICT (service) DO UPDATE
+                SET is_online = TRUE,
+                    last_change_at = CASE WHEN service_status.is_online
+                        THEN service_status.last_change_at ELSE $2 END,
+                    offline_alert_sent = FALSE
+                """,
+                service,
+                now,
+            )
+
+    async def mark_service_offline(self, service: str, now: datetime) -> None:
+        """Servis offline (available=offline / LWT): offline + alert gönderildi işaretle.
+
+        `last_change_at` yalnız gerçek geçişte (online→offline) güncellenir; zaten
+        offline iken (tekrar mesaj / restart retained) korunur.
+        """
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO service_status (service, is_online, last_change_at, offline_alert_sent)
+                VALUES ($1, FALSE, $2, TRUE)
+                ON CONFLICT (service) DO UPDATE
+                SET is_online = FALSE,
+                    last_change_at = CASE WHEN service_status.is_online
+                        THEN $2 ELSE service_status.last_change_at END,
+                    offline_alert_sent = TRUE
+                """,
+                service,
+                now,
+            )

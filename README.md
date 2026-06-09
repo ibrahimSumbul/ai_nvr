@@ -3,7 +3,7 @@
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
 [![Faz: M6.5 tamam · M7 sürüyor](https://img.shields.io/badge/Faz-M6.5%20tamam%20·%20M7%20sürüyor-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
-[![Test: 86 unit · ruff · mypy strict](https://img.shields.io/badge/Test-86%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
+[![Test: 140 unit · ruff · mypy strict](https://img.shields.io/badge/Test-140%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/commits/main)
 [![Issues](https://img.shields.io/github/issues/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/issues)
@@ -29,7 +29,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅ (10 panel); 10 kamera + perf testi production |
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
 | M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
-| M7 — Operasyonel olgunluk | 🚧 | Kamera offline tespit + alarm + Grafana ✅, runbook ✅; backup/disk alarmı kalanı |
+| M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
 
 Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 
@@ -44,6 +44,8 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
 7. **Grafana dashboard** — alan başına giriş, kamyon renk dağılımı, LLM gecikme/başarı, bekleyen alarm.
 8. **Kapı olayları** — ms hassasiyetinde giriş/çıkış logu (`door_events`, alternating in/out); bildirim **DMSS mobil push** ile (NVR external alarm üzerinden, ayrı e-posta altyapısı yok).
 9. **Kamera offline tespit** — `/api/stats` `camera_fps` izlenir; 60 sn frame yoksa `camera_status` offline + Dahua/DMSS alarm + Grafana paneli.
+10. **Disk doluluk + snapshot retention** — zaman-tabanlı snapshot budama (disk hiç dolmasın) + doluluk eşiği (%85) aşılınca Dahua/DMSS alarm + Grafana "Disk Doluluk" paneli. Ham video FIFO kapsam dışı (NVR'ın işi).
+11. **Frigate-down alert** — `frigate/available` LWT dinlenir; Frigate servisi çökerse (tespit pipeline durur) Dahua/DMSS alarm + Grafana "Frigate Servisi" paneli. Kamera offline ≠ Frigate offline boşluğunu kapatır.
 
 ## Mimari Özet
 

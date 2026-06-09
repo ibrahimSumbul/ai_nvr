@@ -358,6 +358,69 @@
           "rawSql": "SELECT camera_id AS \"Kamera\", is_online AS \"Online\", last_seen_at AS \"Son Görülme\", offline_alert_sent AS \"Uyarildi\" FROM camera_status ORDER BY is_online ASC, camera_id"
         }
       ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Disk Doluluk (%)",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 29 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100, "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 85 }] } } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT used_pct AS \"deger\" FROM disk_status ORDER BY checked_at DESC NULLS LAST LIMIT 1"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Snapshot Disk",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 29 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "fixed", "fixedColor": "blue" } } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT snapshot_bytes AS \"deger\" FROM disk_status ORDER BY checked_at DESC NULLS LAST LIMIT 1"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Disk Durumu",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 29 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT mount AS \"Mount\", used_pct AS \"Doluluk %\", snapshot_files AS \"Snapshot Dosya\", pruned_files_last AS \"Son Budanan\", last_pruned_at AS \"Son Budama\", checked_at AS \"Kontrol\" FROM disk_status ORDER BY used_pct DESC"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Frigate Servisi",
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "ainvr-postgres" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 33 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "noValue": "BİLİNMİYOR (veri yok)", "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "0": { "text": "ÇEVRİMDIŞI", "color": "red" }, "1": { "text": "ÇEVRİMİÇİ", "color": "green" } } }] } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN is_online THEN 1 ELSE 0 END AS \"deger\" FROM service_status WHERE service = 'frigate'"
+        }
+      ]
     }
   ]
 }
