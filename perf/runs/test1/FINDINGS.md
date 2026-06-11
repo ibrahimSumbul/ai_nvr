@@ -1,7 +1,7 @@
 # Test 1 — Bulgular, tepki planı ve sunum kriterleri
 
 **Baseline koşum:** `1h-20260611` (2026-06-11, 09:03–10:03 TR)  
-**Durum:** Dokümantasyon tamamlandı → Run 2 (`1h-*`) karşılaştırma bekliyor → ardından artefakt commit.
+**Durum:** Baseline koşum + bulgular + katmanlı kriterler tamamlandı ve commit'lendi (bu PR). Run 2 (ısınmalı karşılaştırma) = belgelenmiş **opsiyonel follow-up** (§2 protokol, §3 şablon) — bu PR'ı bloke etmez.
 
 ---
 
@@ -135,7 +135,9 @@ Doc13 / gerçek operasyon kameraları: **cam_kapi, cam_tir, cam_magaza**
 | Stack 1 saat stabil; Frigate RAM/CPU drift yok | trial2 tablosunu “normal” göstermek |
 | Test loop skip'i bilinen sınır (motion içerik) | i5 bare-metal birebir |
 
-### Run 2 vs baseline — karşılaştırma tablosu (doldurulacak)
+### Run 2 vs baseline — karşılaştırma şablonu (follow-up'ta doldurulur)
+
+> Baseline sütunu bu PR'ın ölçümünden dolu; sağ sütunlar Run 2 koşulduğunda doldurulacak hazır iskelet — bu PR için eksik veri değil.
 
 | Metrik | `1h-20260611` (baseline) | `1h-*` (run 2) | Δ | Pass? |
 |--------|--------------------------|----------------|----|----|
@@ -151,7 +153,9 @@ Doc13 / gerçek operasyon kameraları: **cam_kapi, cam_tir, cam_magaza**
 
 ---
 
-## 4. Sunum hazırlığı (Run 2 sonrası)
+## 4. Sunum hazırlığı
+
+Sunum baseline + Katman C dürüst iddialarıyla **bugün** kurulabilir; Run 2 operasyonel iddiayı güçlendirir ama ön koşul değil.
 
 1. **Tek slayt mesajı:** *“M3 Colima, 6 kamera @5 fps, 1 saat: detector pipeline stabil (p95 41 ms); operasyonel kameralar skip <%10; motion-heavy test loop'ları bilinen sınır.”*
 2. **Grafik adayları:** bridge RAM zaman serisi; kamera skip Q1–Q4; trial vs 1h karşılaştırma.
@@ -160,9 +164,13 @@ Doc13 / gerçek operasyon kameraları: **cam_kapi, cam_tir, cam_magaza**
 
 ---
 
-## 5. Sıradaki adımlar
+## 5. Durum ve follow-up
 
-- [ ] Run 2 protokolü (§2) ile `1h-*` koşumu
-- [ ] §3 karşılaştırma tablosunu doldur
-- [ ] Katman B/C'ye göre sunum metnini kilitle
-- [ ] `perf/runs/test1/*` + bu dosya commit
+**Bu PR'da tamamlandı:**
+- [x] Baseline koşum `1h-20260611` (111 örnek, kesintisiz) + CSV/JSON/stdout artefaktları
+- [x] Bulgular, tepki planı (R1–R6), katmanlı başarı kriterleri (Katman A/B/C)
+- [x] `perf/runs/test1/*` commit'lendi
+
+**Follow-up (opsiyonel, ayrı PR/commit):**
+- [ ] Run 2 protokolü (§2) ile ısınmalı `1h-*` koşumu → §3 şablonunu doldur
+- [ ] Katman B operasyonel pass doğrulanırsa 6h gündüz koşumu

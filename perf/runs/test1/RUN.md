@@ -8,7 +8,7 @@ Doc 13 operasyonel pulse değil — **video/detector altyapısı**.
 M5 kriterleri: RAM stabil, detector inference, frame skip <%5.”*
 
 **Bulgular / tepki planı / sunum kriterleri:** [`FINDINGS.md`](FINDINGS.md)  
-**Baseline:** `1h-20260611` (111 örnek, KALDI 1/3) · **Run 2:** ısınmalı karşılaştırma koşumu bekliyor
+**Baseline:** `1h-20260611` (111 örnek; harness 1/3, Katman B/C analizi `FINDINGS.md`) · **Run 2:** ısınmalı karşılaştırma = opsiyonel follow-up
 
 ---
 
