@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build perf
+.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build perf test1-prepare test1-run
 
 # Default: help göster
 help:
@@ -24,7 +24,11 @@ help:
 	@echo "  make migrate          — Alembic upgrade head"
 	@echo "  make revision NAME=x  — Yeni migrasyon oluştur"
 	@echo ""
-	@echo "Performans (M5 — stack up iken host'ta):"
+	@echo "Test 1 — altyapı perf (M5, perf/runs/test1/RUN.md):"
+	@echo "  make test1-prepare              — stack + migrate + preflight"
+	@echo "  make test1-run ID=trial DURATION=600   — 10 dk deneme"
+	@echo "  make test1-run ID=6h DURATION=21600     — 6 saat asıl koşum"
+	@echo ""
 	@echo "  make perf             — 60s perf testi (ARGS='...' ile override)"
 	@echo "  make perf ARGS='--duration 86400 --interval 30 --out perf-24h'"
 
@@ -68,6 +72,12 @@ type:
 
 perf:
 	cd bridge && uv run python -m bridge.perf $(ARGS)
+
+test1-prepare:
+	@bash scripts/test1-prepare.sh
+
+test1-run:
+	@bash scripts/test1-run.sh $(ID) $(DURATION)
 
 migrate:
 	docker compose exec bridge alembic upgrade head

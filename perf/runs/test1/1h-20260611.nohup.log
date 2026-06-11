@@ -1,0 +1,5 @@
+Test 1 run_id=1h-20260611 duration=3600s interval=30s
+  out=perf/runs/test1/1h-20260611.{csv,json}
+  log=perf/runs/test1/1h-20260611.stdout.log
+2026-06-11 09:01:46 [info     ] perf.sample                    n=1
+2026-06-11 09:02:19 [info     ] perf.sample                    n=2

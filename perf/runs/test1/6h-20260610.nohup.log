@@ -1,0 +1,9 @@
+Test 1 run_id=6h-20260610 duration=21600s interval=30s
+  out=perf/runs/test1/6h-20260610.{csv,json}
+  log=perf/runs/test1/6h-20260610.stdout.log
+2026-06-10 01:20:11 [warning  ] perf.frigate_unreachable       error=
+Test 1 run_id=6h-20260610 duration=21600s interval=30s
+  out=perf/runs/test1/6h-20260610.{csv,json}
+  log=perf/runs/test1/6h-20260610.stdout.log
+2026-06-10 01:21:28 [info     ] perf.sample                    n=1
+2026-06-10 01:22:02 [info     ] perf.sample                    n=2
