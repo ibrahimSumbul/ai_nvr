@@ -1,0 +1,276 @@
+{
+  "samples": 20,
+  "duration_s": 599.862194,
+  "passed": false,
+  "checks": [
+    {
+      "name": "RAM stabil",
+      "passed": false,
+      "detail": "en yüksek bellek büyümesi +32.7% (ainvr-bridge), eşik 20%"
+    },
+    {
+      "name": "CPU başı boş",
+      "passed": false,
+      "detail": "detector p95 inference 248ms, eşik 200ms"
+    },
+    {
+      "name": "Kaçan olay <%5",
+      "passed": false,
+      "detail": "en yüksek p95 atlanan-frame oranı 78.0% (cam_depo), eşik 5%"
+    }
+  ],
+  "containers": [
+    {
+      "name": "ainvr-bridge",
+      "cpu_pct": {
+        "count": 20,
+        "min": 0.07,
+        "max": 6.66,
+        "mean": 0.6765,
+        "p95": 1.49
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 36.43,
+        "max": 47.41,
+        "mean": 42.789,
+        "p95": 47.32
+      },
+      "mem_growth_pct": 32.73412459449501
+    },
+    {
+      "name": "ainvr-frigate",
+      "cpu_pct": {
+        "count": 20,
+        "min": 543.89,
+        "max": 757.02,
+        "mean": 646.665,
+        "p95": 721.52
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 1261.568,
+        "max": 1321.984,
+        "mean": 1298.5855999999999,
+        "p95": 1321.984
+      },
+      "mem_growth_pct": 5.873280920243934
+    },
+    {
+      "name": "ainvr-grafana",
+      "cpu_pct": {
+        "count": 20,
+        "min": 0.04,
+        "max": 3.74,
+        "mean": 0.504,
+        "p95": 3.41
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 186.2,
+        "max": 193.5,
+        "mean": 188.23,
+        "p95": 193.5
+      },
+      "mem_growth_pct": -3.7606302965312843
+    },
+    {
+      "name": "ainvr-mqtt",
+      "cpu_pct": {
+        "count": 20,
+        "min": 0.07,
+        "max": 2.69,
+        "mean": 0.37,
+        "p95": 1.33
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 13.3,
+        "max": 13.4,
+        "mean": 13.352500000000001,
+        "p95": 13.39
+      },
+      "mem_growth_pct": 0.46648793565683633
+    },
+    {
+      "name": "ainvr-postgres",
+      "cpu_pct": {
+        "count": 20,
+        "min": 0.0,
+        "max": 6.08,
+        "mean": 1.043,
+        "p95": 3.71
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 44.6,
+        "max": 45.32,
+        "mean": 45.126,
+        "p95": 45.32
+      },
+      "mem_growth_pct": 1.5781295368033654
+    },
+    {
+      "name": "mediamtx",
+      "cpu_pct": {
+        "count": 20,
+        "min": 2.86,
+        "max": 103.68,
+        "mean": 12.731,
+        "p95": 34.82
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 29.12,
+        "max": 30.14,
+        "mean": 29.6235,
+        "p95": 29.94
+      },
+      "mem_growth_pct": 0.8791176855228933
+    },
+    {
+      "name": "mediamtx-publisher",
+      "cpu_pct": {
+        "count": 20,
+        "min": 3.08,
+        "max": 41.26,
+        "mean": 7.920999999999999,
+        "p95": 11.41
+      },
+      "mem_mb": {
+        "count": 20,
+        "min": 74.57,
+        "max": 75.78,
+        "mean": 75.3255,
+        "p95": 75.78
+      },
+      "mem_growth_pct": 1.5082204031092847
+    }
+  ],
+  "cameras": [
+    {
+      "name": "cam_depo",
+      "camera_fps": {
+        "count": 20,
+        "min": 5.0,
+        "max": 5.2,
+        "mean": 5.04,
+        "p95": 5.1
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.0,
+        "max": 0.9615384615384615,
+        "mean": 0.4973906485671192,
+        "p95": 0.78
+      }
+    },
+    {
+      "name": "cam_kapi",
+      "camera_fps": {
+        "count": 20,
+        "min": 5.0,
+        "max": 5.1,
+        "mean": 5.035,
+        "p95": 5.1
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.0,
+        "max": 0.823529411764706,
+        "mean": 0.10827450980392157,
+        "p95": 0.4901960784313726
+      }
+    },
+    {
+      "name": "cam_magaza",
+      "camera_fps": {
+        "count": 20,
+        "min": 5.0,
+        "max": 5.1,
+        "mean": 5.029999999999999,
+        "p95": 5.1
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.0,
+        "max": 0.9400000000000001,
+        "mean": 0.29576470588235293,
+        "p95": 0.6599999999999999
+      }
+    },
+    {
+      "name": "cam_test",
+      "camera_fps": {
+        "count": 20,
+        "min": 4.7,
+        "max": 5.4,
+        "mean": 5.154999999999999,
+        "p95": 5.4
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.15686274509803924,
+        "max": 0.8113207547169812,
+        "mean": 0.47780044291509094,
+        "p95": 0.7254901960784315
+      }
+    },
+    {
+      "name": "cam_tir",
+      "camera_fps": {
+        "count": 20,
+        "min": 5.0,
+        "max": 5.1,
+        "mean": 5.04,
+        "p95": 5.1
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.0,
+        "max": 0.1,
+        "mean": 0.005980392156862745,
+        "p95": 0.019607843137254905
+      }
+    },
+    {
+      "name": "cam_yaya",
+      "camera_fps": {
+        "count": 20,
+        "min": 4.8,
+        "max": 5.3,
+        "mean": 5.13,
+        "p95": 5.3
+      },
+      "skipped_ratio": {
+        "count": 20,
+        "min": 0.10416666666666667,
+        "max": 0.82,
+        "mean": 0.28818467016705085,
+        "p95": 0.5098039215686275
+      }
+    }
+  ],
+  "detectors": [
+    {
+      "name": "cpu1",
+      "inference_ms": {
+        "count": 20,
+        "min": 23.98,
+        "max": 441.43,
+        "mean": 72.053,
+        "p95": 247.82
+      }
+    },
+    {
+      "name": "cpu2",
+      "inference_ms": {
+        "count": 20,
+        "min": 23.37,
+        "max": 453.96,
+        "mean": 70.8075,
+        "p95": 227.66
+      }
+    }
+  ]
+}

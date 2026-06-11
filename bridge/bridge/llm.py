@@ -22,7 +22,7 @@ from typing import Any, Literal, Protocol
 
 import httpx
 import structlog
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bridge.config import Settings
 
@@ -59,6 +59,17 @@ TrailerType = Literal[
 ]
 Direction = Literal["giris", "cikis", "duruyor", "bilinmeyen"]
 
+# Model prompt'ta ASCII renk listesi istese de Ollama (qwen2.5vl) sık sık Türkçe
+# unicode döndürüyor ("sarı", "kırmızı", "yeşil") → Literal validation patlıyor
+# (truck.llm_failed). Parse öncesi Türkçe harfleri ASCII'ye indirgeyerek toparla.
+_TR_TO_ASCII = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosucgiosu")
+
+
+def _normalize_tr_token(value: object) -> object:
+    if isinstance(value, str):
+        return value.strip().translate(_TR_TO_ASCII).lower()
+    return value
+
 
 class TruckAnalysis(BaseModel):
     """Tır renk + dorse analiz sonucu."""
@@ -73,6 +84,11 @@ class TruckAnalysis(BaseModel):
     yon: Direction | None = None
     guven: float = Field(ge=0.0, le=1.0)
     notlar: str | None = None
+
+    @field_validator("cekici_rengi", "dorse_rengi", "dorse_tipi", "yon", mode="before")
+    @classmethod
+    def _ascii_normalize(cls, value: object) -> object:
+        return _normalize_tr_token(value)
 
 
 # ---- LLM çağrı sonucu (kullanım metadata'sı ile) ----
