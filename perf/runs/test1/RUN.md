@@ -7,13 +7,16 @@ Doc 13 operasyonel pulse değil — **video/detector altyapısı**.
 **Sunum cümlesi:** *“6 RTSP stream, cpu1+cpu2, Ollama açık (yalnız olay-tetikli LLM);
 M5 kriterleri: RAM stabil, detector inference, frame skip <%5.”*
 
+**Bulgular / tepki planı / sunum kriterleri:** [`FINDINGS.md`](FINDINGS.md)  
+**Baseline:** `1h-20260611` (111 örnek, KALDI 1/3) · **Run 2:** ısınmalı karşılaştırma koşumu bekliyor
+
 ---
 
 ## Ortam (her koşumda doldur)
 
 | Alan | Değer |
 |------|--------|
-| `run_id` | *(örn. `20260610-trial` / `20260610-6h`)* |
+| `run_id` | `1h-20260611` (baseline) → `1h-*` (run 2) |
 | Git commit | `git rev-parse --short HEAD` |
 | Host | Apple M3, 8 logical CPU *(sysctl hw.ncpu)* |
 | Colima | `colima list` — CPU/RAM *(simülasyon yok, default profil)* |

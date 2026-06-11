@@ -1,0 +1,141 @@
+2026-06-11 09:03:21 [info     ] perf.sample                    n=1
+2026-06-11 09:03:54 [info     ] perf.sample                    n=2
+2026-06-11 09:04:26 [info     ] perf.sample                    n=3
+2026-06-11 09:04:59 [info     ] perf.sample                    n=4
+2026-06-11 09:05:32 [info     ] perf.sample                    n=5
+2026-06-11 09:06:05 [info     ] perf.sample                    n=6
+2026-06-11 09:06:38 [info     ] perf.sample                    n=7
+2026-06-11 09:07:10 [info     ] perf.sample                    n=8
+2026-06-11 09:07:43 [info     ] perf.sample                    n=9
+2026-06-11 09:08:16 [info     ] perf.sample                    n=10
+2026-06-11 09:08:49 [info     ] perf.sample                    n=11
+2026-06-11 09:09:21 [info     ] perf.sample                    n=12
+2026-06-11 09:09:54 [info     ] perf.sample                    n=13
+2026-06-11 09:10:27 [info     ] perf.sample                    n=14
+2026-06-11 09:11:00 [info     ] perf.sample                    n=15
+2026-06-11 09:11:33 [info     ] perf.sample                    n=16
+2026-06-11 09:12:06 [info     ] perf.sample                    n=17
+2026-06-11 09:12:39 [info     ] perf.sample                    n=18
+2026-06-11 09:13:11 [info     ] perf.sample                    n=19
+2026-06-11 09:13:44 [info     ] perf.sample                    n=20
+2026-06-11 09:14:17 [info     ] perf.sample                    n=21
+2026-06-11 09:14:50 [info     ] perf.sample                    n=22
+2026-06-11 09:15:22 [info     ] perf.sample                    n=23
+2026-06-11 09:15:55 [info     ] perf.sample                    n=24
+2026-06-11 09:16:28 [info     ] perf.sample                    n=25
+2026-06-11 09:17:01 [info     ] perf.sample                    n=26
+2026-06-11 09:17:33 [info     ] perf.sample                    n=27
+2026-06-11 09:18:06 [info     ] perf.sample                    n=28
+2026-06-11 09:18:39 [info     ] perf.sample                    n=29
+2026-06-11 09:19:11 [info     ] perf.sample                    n=30
+2026-06-11 09:19:43 [info     ] perf.sample                    n=31
+2026-06-11 09:20:16 [info     ] perf.sample                    n=32
+2026-06-11 09:20:49 [info     ] perf.sample                    n=33
+2026-06-11 09:21:22 [info     ] perf.sample                    n=34
+2026-06-11 09:21:54 [info     ] perf.sample                    n=35
+2026-06-11 09:22:27 [info     ] perf.sample                    n=36
+2026-06-11 09:23:00 [info     ] perf.sample                    n=37
+2026-06-11 09:23:33 [info     ] perf.sample                    n=38
+2026-06-11 09:24:06 [info     ] perf.sample                    n=39
+2026-06-11 09:24:38 [info     ] perf.sample                    n=40
+2026-06-11 09:25:11 [info     ] perf.sample                    n=41
+2026-06-11 09:25:44 [info     ] perf.sample                    n=42
+2026-06-11 09:26:17 [info     ] perf.sample                    n=43
+2026-06-11 09:26:50 [info     ] perf.sample                    n=44
+2026-06-11 09:27:22 [info     ] perf.sample                    n=45
+2026-06-11 09:27:55 [info     ] perf.sample                    n=46
+2026-06-11 09:28:28 [info     ] perf.sample                    n=47
+2026-06-11 09:29:01 [info     ] perf.sample                    n=48
+2026-06-11 09:29:34 [info     ] perf.sample                    n=49
+2026-06-11 09:30:06 [info     ] perf.sample                    n=50
+2026-06-11 09:30:39 [info     ] perf.sample                    n=51
+2026-06-11 09:31:12 [info     ] perf.sample                    n=52
+2026-06-11 09:31:45 [info     ] perf.sample                    n=53
+2026-06-11 09:32:18 [info     ] perf.sample                    n=54
+2026-06-11 09:32:50 [info     ] perf.sample                    n=55
+2026-06-11 09:33:23 [info     ] perf.sample                    n=56
+2026-06-11 09:33:56 [info     ] perf.sample                    n=57
+2026-06-11 09:34:29 [info     ] perf.sample                    n=58
+2026-06-11 09:35:01 [info     ] perf.sample                    n=59
+2026-06-11 09:35:34 [info     ] perf.sample                    n=60
+2026-06-11 09:36:07 [info     ] perf.sample                    n=61
+2026-06-11 09:36:40 [info     ] perf.sample                    n=62
+2026-06-11 09:37:13 [info     ] perf.sample                    n=63
+2026-06-11 09:37:45 [info     ] perf.sample                    n=64
+2026-06-11 09:38:18 [info     ] perf.sample                    n=65
+2026-06-11 09:38:51 [info     ] perf.sample                    n=66
+2026-06-11 09:39:24 [info     ] perf.sample                    n=67
+2026-06-11 09:39:57 [info     ] perf.sample                    n=68
+2026-06-11 09:40:29 [info     ] perf.sample                    n=69
+2026-06-11 09:41:02 [info     ] perf.sample                    n=70
+2026-06-11 09:41:35 [info     ] perf.sample                    n=71
+2026-06-11 09:42:08 [info     ] perf.sample                    n=72
+2026-06-11 09:42:41 [info     ] perf.sample                    n=73
+2026-06-11 09:43:13 [info     ] perf.sample                    n=74
+2026-06-11 09:43:46 [info     ] perf.sample                    n=75
+2026-06-11 09:44:19 [info     ] perf.sample                    n=76
+2026-06-11 09:44:52 [info     ] perf.sample                    n=77
+2026-06-11 09:45:25 [info     ] perf.sample                    n=78
+2026-06-11 09:45:57 [info     ] perf.sample                    n=79
+2026-06-11 09:46:30 [info     ] perf.sample                    n=80
+2026-06-11 09:47:03 [info     ] perf.sample                    n=81
+2026-06-11 09:47:36 [info     ] perf.sample                    n=82
+2026-06-11 09:48:08 [info     ] perf.sample                    n=83
+2026-06-11 09:48:41 [info     ] perf.sample                    n=84
+2026-06-11 09:49:14 [info     ] perf.sample                    n=85
+2026-06-11 09:49:47 [info     ] perf.sample                    n=86
+2026-06-11 09:50:20 [info     ] perf.sample                    n=87
+2026-06-11 09:50:53 [info     ] perf.sample                    n=88
+2026-06-11 09:51:25 [info     ] perf.sample                    n=89
+2026-06-11 09:51:58 [info     ] perf.sample                    n=90
+2026-06-11 09:52:31 [info     ] perf.sample                    n=91
+2026-06-11 09:53:04 [info     ] perf.sample                    n=92
+2026-06-11 09:53:37 [info     ] perf.sample                    n=93
+2026-06-11 09:54:10 [info     ] perf.sample                    n=94
+2026-06-11 09:54:42 [info     ] perf.sample                    n=95
+2026-06-11 09:55:15 [info     ] perf.sample                    n=96
+2026-06-11 09:55:48 [info     ] perf.sample                    n=97
+2026-06-11 09:56:22 [info     ] perf.sample                    n=98
+2026-06-11 09:56:54 [info     ] perf.sample                    n=99
+2026-06-11 09:57:27 [info     ] perf.sample                    n=100
+2026-06-11 09:58:00 [info     ] perf.sample                    n=101
+2026-06-11 09:58:33 [info     ] perf.sample                    n=102
+2026-06-11 09:59:06 [info     ] perf.sample                    n=103
+2026-06-11 09:59:38 [info     ] perf.sample                    n=104
+2026-06-11 10:00:11 [info     ] perf.sample                    n=105
+2026-06-11 10:00:44 [info     ] perf.sample                    n=106
+2026-06-11 10:01:17 [info     ] perf.sample                    n=107
+2026-06-11 10:01:50 [info     ] perf.sample                    n=108
+2026-06-11 10:02:22 [info     ] perf.sample                    n=109
+2026-06-11 10:02:55 [info     ] perf.sample                    n=110
+2026-06-11 10:03:21 [info     ] perf.sample                    n=111
+2026-06-11 10:03:21 [info     ] perf.written                   csv=../perf/runs/test1/1h-20260611.csv json=../perf/runs/test1/1h-20260611.json
+Perf testi: 111 örnek, 3600s
+
+Container          CPU% ort/maks    RAM MB ort/maks    Büyüme
+  ainvr-bridge        1.4/36.0         87/131      +210.6%
+  ainvr-frigate     622.2/907.7      1370/1392     +4.0%
+  ainvr-grafana       0.2/3.7         185/186      +0.5%
+  ainvr-mqtt          0.3/3.0          11/12       +0.5%
+  ainvr-postgres      0.3/4.3          47/48       +2.1%
+  mediamtx            3.9/36.8         30/32       +1.0%
+  mediamtx-publisher    5.1/95.9         77/79       +4.6%
+
+Detector           inference ms ort/p95/maks
+  cpu1               26.9/  39.2/55.9
+  cpu2               27.2/  40.5/48.8
+
+Kamera             fps min/ort    atlanan% ort/p95
+  cam_depo          5.0/5.0    25.8/52.0
+  cam_kapi          5.0/5.0     0.4/2.0
+  cam_magaza        5.0/5.0     5.1/28.0
+  cam_test          4.7/5.1    29.5/53.7
+  cam_tir           5.0/5.0     1.3/7.8
+  cam_yaya          5.0/5.1    16.4/25.5
+
+Sonuç:
+  ✗ RAM stabil: en yüksek bellek büyümesi +210.6% (ainvr-bridge), eşik 20%
+  ✓ CPU başı boş: detector p95 inference 41ms, eşik 200ms
+  ✗ Kaçan olay <%5: en yüksek p95 atlanan-frame oranı 53.7% (cam_test), eşik 5%
+
+KALDI ❌
