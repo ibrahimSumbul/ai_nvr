@@ -132,7 +132,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 - [~] Frigate config: çoklu kamera (dev'de 5 MediaMTX stream aktif; production'da 10 gerçek Dahua kamera)
 - [x] Per-zone konfigürasyon (her alanın kendi kuralı — `zones.yaml` ZoneRules, M2'den beri; M4'te `dahua_channel` eklendi)
-- [~] Performans test: harness ✅ (`bridge/perf.py` — `make perf`; CPU/RAM/gecikme örnekleme + M5 eşik pass/fail); gerçek 24s koşum stack/production'a bağlı
+- [~] Performans test: harness ✅ (`bridge/perf.py`, `make perf`) + **1h baseline ✅** ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md) — 6 RTSP @5fps, detector p95 41ms; katmanlı dürüst kriterler A/B/C); 6h/24h soak + 10 gerçek kamera kaldı. Test merdiveni: [`docs/14`](docs/14-testing-and-production-readiness.md)
 - [ ] **Coral USB değerlendirme** — CPU yetmiyorsa hemen sipariş tetiklenir
 - [x] **Grafana dashboard**: provisioning (datasource + dashboard JSON), alan başına ilk giriş, kamyon renk dağılımı, LLM gecikme/başarı, Dahua alarm durumu
 

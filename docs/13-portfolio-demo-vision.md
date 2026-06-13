@@ -176,4 +176,4 @@ Sonra (öneri):
 4. **Kamera 5 mutabakat** — kart sistemi entegrasyonu gerektirir (en sona).
 
 Her dilim: Frigate config + bridge handler + VLM şema/prompt + DB + Grafana + test +
-adversarial review (ultracode deseni; M7'deki gibi).
+çok-geçişli adversarial review (M7'deki gibi).
