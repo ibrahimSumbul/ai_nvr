@@ -164,6 +164,18 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/14-testing-and-production-readiness.md`](docs/14-testing-and-production-readiness.md) | Test merdiveni + perf soak (1h/6h/24h) + gerçek sahaya çıkış checklist |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
+## Bilinen Sınırlar & Dürüst Öz-değerlendirme
+
+Bu projenin merkez ilkesi — **ölçülen ≠ çıkarsanan** — sadece sisteme değil, projenin kendisine de uygulanır. Aşağıdakiler henüz kanıtlanmış *değil*; bilerek ve açıkça işaretlenir:
+
+- **Gerçek Dahua NVR'da hiç koşmadı.** Tüm uçtan-uca doğrulama dev-stack + MediaMTX test stream'leri üzerinde yapıldı. Canlı NVR'a external alarm geri-beslemesi (M4) kod olarak tamam ve mock/retry ile test edildi, ama gerçek bir DSS/SmartPSS paneline karşı doğrulanmadı.
+- **Performans kanıtı ince.** Geçen tek şey 1 saatlik altyapı baseline'ı (6 kamera @5fps, detector p95 41 ms). 6h/24h uzun soak ve 10+ kamera ölçeği henüz koşulmadı — metodoloji ve katmanlı kriterler hazır ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md)), koşum bekliyor.
+- **Manşet özellik (M8 — adli davranış zekası) henüz kodsuz.** Spec + grounding kontratı + build kontratları (Appendix A) yazıldı; implementasyon yok. Durumu "tasarım", "çalışıyor" değil — başlıkta ve ROADMAP'te böyle işaretli.
+- **Donanım hızlandırma ölçülmedi.** Sistem CPU-only çalışır ve test böyle yapıldı; Coral USB opsiyonel ve henüz kıyaslanmadı. Çok-kamera ölçeğinde CPU yeterliliği gerçek donanımda doğrulanmalı.
+- **Bilinçli kapsam sınırları.** Plaka okumaz (KVKK), ham video FIFO'su NVR'ın işidir, e-posta/viewer entegrasyonu kapsam dışıdır ([`docs/09`](docs/09-notifications.md)).
+
+Bu liste kapalı değil. Her sınır [`ROADMAP.md`](ROADMAP.md)'te bir sonraki adıma bağlı; ve dokümante edilmemiş iyileştirmeler de planın parçası — sahada çıkan her yeni gereksinim karar kaydı olarak ROADMAP'e eklenir. Amaç mükemmel görünmek değil, **nerede durduğunu dürüstçe bilen** bir sistem sunmak.
+
 ## Katkı
 
 Bu MIT lisanslı bir referans mimaridir. İterasyon hoş karşılanır:
