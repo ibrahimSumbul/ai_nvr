@@ -12,7 +12,7 @@ Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan ye
 
 Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal nesne tespiti **Frigate**'te koşar (CPU → opsiyonel Coral USB), semantik analiz (tır/dorse rengi) **lokal Ollama vision modeli**nde koşar — **görüntüler tesisten çıkmaz, aylık LLM maliyeti $0**. Olaylar orijinal DSS/SmartPSS paneline **external alarm** olarak geri akar.
 
-> **Senior portföy projesi.** Amaç: mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI'ı — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan açık-kaynak bir referans sistem* olarak sunmak. Soyut tasarım değil: çalışır kod + dokümantasyon + ölçülebilir kanıt.
+> **Açık-kaynak referans + portföy projesi.** Amaç: mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI'ı — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan bir referans sistem* olarak sunmak. Soyut tasarım değil: çalışır kod + dokümantasyon + ölçülebilir kanıt.
 
 ## Durum
 
@@ -20,7 +20,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 
 | Milestone | Durum | Özet |
 |---|---|---|
-| M0 — Mimari & dokümantasyon | ✅ | 11 doküman, kararlar |
+| M0 — Mimari & dokümantasyon | ✅ | Doküman seti + mimari kararlar |
 | M1 — Docker stack iskeleti | ✅ | 5 servis, Alembic, CI |
 | M2 — Tek kamera pilot | ✅ | Zone state machine, ilk-giriş alarmı, snapshot |
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
@@ -39,8 +39,6 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14
 ## Hedef ve Üretime Giden Yol
 
 **Kuzey yıldızı:** soyut bir demo değil — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan ve ölçülebilir bir açık-kaynak AI sistemi.* Bu yüzden "ne kanıtlandı, ne varsayım" ayrımı en az kod kadar önemli (ilke: **ölçülen ≠ çıkarsanan**).
-
-**Şu an neredeyiz (dürüst çerçeve):** Sistem dev-stack'te (Colima + MediaMTX sentetik RTSP) uçtan uca çalışıyor; ~140 unit test + 1h perf baseline ile destekleniyor. Gerçek bir Dahua NVR'a / gerçek kameralara **henüz dokunulmadı** (M4 alarm kodu mock ile path-doğrulandı).
 
 **Test merdiveni:** unit (~140) → gerçek-bağımlılık E2E (Postgres+Frigate) → gerçek video E2E (tır → Ollama) → **perf soak (1h ✅ · 6h/24h planlı)** → doc13 demo (M8.1) → gerçek saha pilotu. Şu an 4. basamaktayız.
 
@@ -173,7 +171,7 @@ Bu MIT lisanslı bir referans mimaridir. İterasyon hoş karşılanır:
 - **Mimari soru veya öneri** — [GitHub Issues](https://github.com/ibrahimSumbul/ai_nvr/issues) (etiket: `discussion`)
 - **Hata bildirimi** — Issue açın; reproduksiyon adımları, log çıktısı (PII'siz), Docker compose versiyonu ekleyin
 - **Pull Request** — [`ROADMAP.md`](ROADMAP.md)'deki milestone'larla uyumlu olan değişiklikler öncelikli; uyumlu olmayan PR'lar için önce bir Issue ile tartışalım
-- **Doküman katkısı** — `docs/` altındaki 11 dokümandan herhangi birinde düzeltme/iyileştirme açık PR olarak gelebilir
+- **Doküman katkısı** — `docs/` altındaki dokümanlardan herhangi birinde düzeltme/iyileştirme açık PR olarak gelebilir
 
 > KVKK / GDPR farkındalığı: Issue veya PR'da gerçek kamera görüntüsü, kişi yüzü, plaka veya tesise özgü bilgi paylaşmayın. Test verisi için sentetik / mock kullanın.
 
