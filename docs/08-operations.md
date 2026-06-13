@@ -259,12 +259,12 @@ Genelde disk dolu veya `max_connections`.
 
 ## Geliştirme & Deploy
 
-Tüm değişiklikler git üzerinden (her PR subagent review + post-merge doğrulama — bkz. proje workflow):
+Tüm değişiklikler git üzerinden (her PR kod review + post-merge doğrulama):
 ```bash
 git checkout -b feat/...      # branch
 # edit + test (uv run --group dev pytest / ruff / mypy)
 git commit && git push
-gh pr create                  # subagent review → squash merge
+gh pr create                  # kod review → squash merge
 # production: cd /opt/ai_nvr && git pull && docker compose up -d
 ```
 

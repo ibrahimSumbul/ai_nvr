@@ -12,9 +12,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 - `bridge/zones.py` + `bridge/doors.py` — best-effort snapshot gözlemlenebilirliği: snapshot None olsa da olay yine yazılır (kanıt opsiyonel), ama `metadata.snapshot_available=false` + uyarı/debug log ile görünür kılınır.
 - `docs/06-llm-strategy.md` — "Snapshot Seçimi ve Yaşam Döngüsü" bölümü: tek best-frame seçimi, `?height=480`, **kritik (trucks) vs best-effort (zones/doors)** politikası, snapshot-gated dedup gerekçesi.
 - 5 yeni/güncellenmiş unit test (snapshot None → dedup'a eklenmez, has_snapshot=false → fetch yok, snapshot-not-ready → retry → işlenir).
-- `bridge/alembic/versions/0002_truck_dedup_index.py` + `db/schema.sql` — `truck_events ((metadata->>'frigate_event_id'))` expression index. Dedup sorgusu (`truck_event_exists`) snapshot-pending window'da her event'te çalışabildiğinden seq scan'i önler (subagent review). Migration 0001→0002 canlı uygulandı.
+- `bridge/alembic/versions/0002_truck_dedup_index.py` + `db/schema.sql` — `truck_events ((metadata->>'frigate_event_id'))` expression index. Dedup sorgusu (`truck_event_exists`) snapshot-pending window'da her event'te çalışabildiğinden seq scan'i önler (kod review). Migration 0001→0002 canlı uygulandı.
 
 ### Added
+
+**M5 — Test 1 altyapı baseline (1h soak)** (PR #28)
+- `perf/runs/test1/` — ilk 1 saatlik kesintisiz soak (`1h-20260611`, 111 örnek): detector p95 **41 ms** ✓ (cpu1+cpu2 dengeli), Frigate CPU ~622% (1 saat stabil), RAM sızıntısı yok. cpu2 ikinci detector + `scripts/test1-{prepare,run}.sh` + `Makefile` hedefleri.
+- `FINDINGS.md` — **katmanlı dürüst başarı kriterleri** (Katman A ham harness / B operasyonel alt küme / C sunum iddiaları) + R1–R6 tepki planı. Harness 3 kriterden 2'sini "fail" eder ama analiz nedenini ayırır: bridge RAM check = restart-baz false-positive (gerçek 131 MB ihmal edilebilir); skip = sentetik motion-heavy test loop artefaktı (operasyonel cam_kapi %0.4 / cam_tir %1.3 mükemmel). Metodoloji dersi (R1): uzun soak Terminal.app + `caffeinate -dimsu` ister.
+- `bridge/bridge/llm.py` — `fix(M3)`: Ollama Türkçe unicode renk çıktısı (`sarı`→`sari`) ASCII literal normalize (field_validator) + test. Literal validation patlayıp event'leri `truck.llm_failed`'e düşürüyordu.
+- Yeni `docs/14-testing-and-production-readiness.md` — test merdiveni + perf soak metodolojisi + gerçek sahaya-çıkış checklist'i.
 
 **M7 — Frigate-down alert (servis LWT)**
 - `bridge/bridge/frigate_monitor.py` — `FrigateMonitor`: Frigate'in MQTT availability topic'i (`frigate/available`, retained + LWT, `online`/`offline`) dinlenir. `offline` (Frigate çöker → broker LWT yayınlar) → **bir kez** Dahua external alarm (`frigate_offline`) → DMSS; tek-uyarı + recovery (kamera offline deseni). Kapatılan boşluk: `CameraMonitor` Frigate down iken kameraları **kasıtlı** offline işaretlemez (Frigate down ≠ kamera down), dolayısıyla Frigate çökünce sistem şimdiye dek sessizdi.
@@ -37,7 +43,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 **M5 — Performans test harness**
 - `bridge/bridge/perf.py` — stack ayaktayken Frigate `/api/stats` + `docker stats` periyodik örnekler; M5 kriterlerine göre pass/fail: **RAM stabil** (container bellek büyümesi ≤%20), **CPU başı boş** (detector p95 inference ≤200ms → aşımı Coral USB sinyali), **kaçan olay <%5** (kamera skipped/decode ≤%5). Çıktı: CSV (long-format zaman serisi) + JSON (özet) + stdout tablo + exit code (CI/cron uyumlu). Eşikler CLI ile override.
 - `Makefile` `perf` hedefi (`make perf ARGS="..."`); default Frigate URL `localhost:5100` (compose `5100:5000` — host 5000 macOS AirPlay'de çakışır).
-- **Subagent review sertleştirmeleri**: (1) büyüme metriği ilk/son-pencere-ort yerine **doğrusal regresyon eğimi** — lineer bellek sızıntısını tam yakalar (eski hali eşiğin altında "stabil" gösterebiliyordu); (2) eksik veri (Frigate `/api/stats` veya docker erişilemedi) → ilgili check **"veri yok" ile başarısız**, yanıltıcı GEÇTİ/exit 0 yok.
+- **Kod review sertleştirmeleri**: (1) büyüme metriği ilk/son-pencere-ort yerine **doğrusal regresyon eğimi** — lineer bellek sızıntısını tam yakalar (eski hali eşiğin altında "stabil" gösterebiliyordu); (2) eksik veri (Frigate `/api/stats` veya docker erişilemedi) → ilgili check **"veri yok" ile başarısız**, yanıltıcı GEÇTİ/exit 0 yok.
 - Saf parse/özet/değerlendirme fonksiyonları IO'dan ayrıldı; **28 unit test** (enjekte-deps IO döngüsü dahil — canlı stack gerekmez), toplam 113. Dokümantasyon: `docs/08-operations.md > Performans Testi (M5)`.
 
 **M3 — Truck gerçek E2E + Frigate truck detection fix**
