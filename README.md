@@ -1,7 +1,7 @@
 # AI NVR — Dahua + Frigate + Ollama Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Faz: M6.5 tamam · M7 sürüyor](https://img.shields.io/badge/Faz-M6.5%20tamam%20·%20M7%20sürüyor-green.svg)](ROADMAP.md)
+[![Faz: M7 sürüyor · M8 tasarım](https://img.shields.io/badge/Faz-M7%20sürüyor%20·%20M8%20tasarım-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
 [![Test: 140 unit · ruff · mypy strict](https://img.shields.io/badge/Test-140%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
@@ -12,11 +12,11 @@ Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan ye
 
 Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal nesne tespiti **Frigate**'te koşar (CPU → opsiyonel Coral USB), semantik analiz (tır/dorse rengi) **lokal Ollama vision modeli**nde koşar — **görüntüler tesisten çıkmaz, aylık LLM maliyeti $0**. Olaylar orijinal DSS/SmartPSS paneline **external alarm** olarak geri akar.
 
-> Portföy projesi — mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI için açık kaynak referans mimari, çalışır kod ve dokümantasyon.
+> **Senior portföy projesi.** Amaç: mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI'ı — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan açık-kaynak bir referans sistem* olarak sunmak. Soyut tasarım değil: çalışır kod + dokümantasyon + ölçülebilir kanıt.
 
 ## Durum
 
-> **Çekirdek pipeline çalışıyor.** 5 servis healthy; kamera → Frigate tespit → bridge zone state machine → Postgres + Dahua alarm + Ollama tır analizi → Grafana dashboard uçtan uca doğrulandı (lokal Colima + MediaMTX test stream).
+> **Çekirdek pipeline çalışıyor** (dev-stack'te uçtan uca): 5 servis healthy; kamera → Frigate tespit → bridge zone state machine → Postgres + Dahua alarm + Ollama tır analizi → Grafana dashboard doğrulandı (lokal Colima + MediaMTX test stream). **Henüz gerçek Dahua NVR'da koşmadı** — sahaya çıkış planı aşağıda.
 
 | Milestone | Durum | Özet |
 |---|---|---|
@@ -26,12 +26,30 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
 | M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) |
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
-| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera aktif, dashboard ✅ (10 panel); 10 kamera + perf testi production |
+| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera + dashboard ✅ (10 panel) + **perf harness & 1h baseline ✅**; 10 gerçek kamera + uzun soak kaldı |
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
 | M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
 | M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
+| M8 — Adli davranış zekası | 🔬 tasarım | "Olayı açıkla; ölçüleni çıkarsanandan ayır" — spec + Appendix A build kontratları ✅, kod ⬜ |
 
-Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md).
+**Ölçülebilir kanıt:** ilk 1 saatlik altyapı soak'ı geçti — 6 RTSP @5fps, detector p95 **41 ms** (eşik 200), RAM/CPU drift yok ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), dürüst katmanlı kriterlerle).
+
+Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14`](docs/14-testing-and-production-readiness.md).
+
+## Hedef ve Üretime Giden Yol
+
+**Kuzey yıldızı:** soyut bir demo değil — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan ve ölçülebilir bir açık-kaynak AI sistemi.* Bu yüzden "ne kanıtlandı, ne varsayım" ayrımı en az kod kadar önemli (ilke: **ölçülen ≠ çıkarsanan**).
+
+**Şu an neredeyiz (dürüst çerçeve):** Sistem dev-stack'te (Colima + MediaMTX sentetik RTSP) uçtan uca çalışıyor; ~140 unit test + 1h perf baseline ile destekleniyor. Gerçek bir Dahua NVR'a / gerçek kameralara **henüz dokunulmadı** (M4 alarm kodu mock ile path-doğrulandı).
+
+**Test merdiveni:** unit (~140) → gerçek-bağımlılık E2E (Postgres+Frigate) → gerçek video E2E (tır → Ollama) → **perf soak (1h ✅ · 6h/24h planlı)** → doc13 demo (M8.1) → gerçek saha pilotu. Şu an 4. basamaktayız.
+
+**Sahaya çıkış planı:**
+1. **Uzun soak** — ısınmalı Run 2, ardından 6h/24h (Terminal + `caffeinate`); metodoloji ve katmanlı kriterler [`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md).
+2. **doc13 demosu** — 5-kamera forensic akış (M8.1 grounded rapor → M8.2 handoff), demo videolarıyla doğrulanır.
+3. **Gerçek pilot** — canlı Dahua NVR + gerçek kameralar; öncesinde donanım/ağ + NVR entegrasyonu + KVKK + operasyon checklist'i.
+
+Tüm test katmanları, soak metodolojisi ve sahaya-çıkış checklist'i: **[`docs/14 — Test ve Üretime Hazırlık`](docs/14-testing-and-production-readiness.md)**.
 
 ## Ne Yapar?
 
@@ -111,7 +129,7 @@ docker compose logs bridge    # "bridge.ready ... cameras=N zones=N"
 ```bash
 cd bridge
 uv sync --group dev                     # bağımlılıklar
-uv run --group dev pytest -m "not integration"   # 60 unit test
+uv run --group dev pytest -m "not integration"   # ~140 unit test
 uv run --group dev ruff check . && uv run --group dev mypy bridge
 ```
 
@@ -144,6 +162,8 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/10-why-frigate.md`](docs/10-why-frigate.md) | Frigate neden gerekli? Saf LLM ile yapılamaz mı? |
 | [`docs/11-tech-decisions.md`](docs/11-tech-decisions.md) | Teknoloji seçim kararları |
 | [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) | _(planlı, M8)_ Adli davranış zekası: ölçülen≠çıkarsanan grounding + build kontratları (Appendix A) |
+| [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md) | _(planlı, M8)_ 5-kamera somut forensic demo senaryosu |
+| [`docs/14-testing-and-production-readiness.md`](docs/14-testing-and-production-readiness.md) | Test merdiveni + perf soak (1h/6h/24h) + gerçek sahaya çıkış checklist |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
 ## Katkı
