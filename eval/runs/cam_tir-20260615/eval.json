@@ -1,0 +1,139 @@
+{
+  "cases": 7,
+  "failures": 0,
+  "passed": false,
+  "checks": [
+    {
+      "name": "Çekici renk doğruluğu",
+      "passed": true,
+      "detail": "85.7% (6/7), cevap oranı 100%, eşik ≥80%"
+    },
+    {
+      "name": "Dorse-var F1",
+      "passed": true,
+      "detail": "F1 1.00 (P 1.00 / R 1.00), eşik ≥0.80"
+    },
+    {
+      "name": "Güven kalibrasyonu (ECE)",
+      "passed": false,
+      "detail": "ECE 0.257 (n=7), eşik ≤0.15"
+    },
+    {
+      "name": "Renk uyumu (κ)",
+      "passed": true,
+      "detail": "κ 0.82, eşik ≥0.50"
+    }
+  ],
+  "latency_ms": {
+    "count": 7,
+    "min": 16127.0,
+    "max": 27477.0,
+    "mean": 19316.285714285714,
+    "p95": 27477.0
+  },
+  "cekici_color": {
+    "total": 7,
+    "answered": 7,
+    "correct": 6,
+    "accuracy": 0.8571428571428571,
+    "answer_rate": 1.0
+  },
+  "dorse_color": {
+    "total": 6,
+    "answered": 6,
+    "correct": 1,
+    "accuracy": 0.16666666666666666,
+    "answer_rate": 1.0
+  },
+  "dorse_type": {
+    "total": 7,
+    "answered": 7,
+    "correct": 0,
+    "accuracy": 0.0,
+    "answer_rate": 1.0
+  },
+  "yon": {
+    "total": 0,
+    "answered": 0,
+    "correct": 0,
+    "accuracy": 0.0,
+    "answer_rate": 0.0
+  },
+  "tir_presence": {
+    "tp": 7,
+    "fp": 0,
+    "fn": 0,
+    "tn": 0,
+    "failed": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "accuracy": 1.0
+  },
+  "dorse_presence": {
+    "tp": 7,
+    "fp": 0,
+    "fn": 0,
+    "tn": 0,
+    "failed": 0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "accuracy": 1.0
+  },
+  "color_kappa": 0.8205128205128205,
+  "ece": 0.2571428571428571,
+  "calibration": [
+    {
+      "range": "[0.00,0.50)",
+      "count": 0,
+      "mean_conf": 0.0,
+      "accuracy": 0.0
+    },
+    {
+      "range": "[0.50,0.70)",
+      "count": 0,
+      "mean_conf": 0.0,
+      "accuracy": 0.0
+    },
+    {
+      "range": "[0.70,0.90)",
+      "count": 5,
+      "mean_conf": 0.8,
+      "accuracy": 1.0
+    },
+    {
+      "range": "[0.90,1.01)",
+      "count": 2,
+      "mean_conf": 0.9,
+      "accuracy": 0.5
+    }
+  ],
+  "color_confusion": [
+    {
+      "gold": "beyaz",
+      "pred": "beyaz",
+      "count": 2
+    },
+    {
+      "gold": "kirmizi",
+      "pred": "kirmizi",
+      "count": 1
+    },
+    {
+      "gold": "lacivert",
+      "pred": "mavi",
+      "count": 1
+    },
+    {
+      "gold": "sari",
+      "pred": "sari",
+      "count": 1
+    },
+    {
+      "gold": "yesil",
+      "pred": "yesil",
+      "count": 2
+    }
+  ]
+}

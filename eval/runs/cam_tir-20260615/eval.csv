@@ -1,0 +1,8 @@
+image_id,gold_cekici,pred_cekici,cekici_ok,gold_dorse_var,pred_dorse_var,gold_dorse_rengi,pred_dorse_rengi,gold_dorse_tipi,pred_dorse_tipi,gold_yon,pred_yon,guven,latency_ms,error
+tir01_beyaz_tenteli,beyaz,beyaz,True,True,True,beyaz,gri,tenteli,bilinmeyen,,giris,0.80,27477,
+tir04_kirmizi_tenteli,kirmizi,kirmizi,True,True,True,lacivert,mavi,tenteli,bilinmeyen,,giris,0.90,16127,
+tir07_sari_tenteli,sari,sari,True,True,True,beyaz,gri,tenteli,bilinmeyen,,giris,0.80,17339,
+tir12_lacivert_tenteli,lacivert,mavi,False,True,True,kirmizi,kirmizi,tenteli,bilinmeyen,,giris,0.90,18959,
+tir14_yesil_acik,yesil,yesil,True,True,True,,gri,acik,bilinmeyen,,giris,0.80,18847,
+tir15_yesil_acik_arka,yesil,yesil,True,True,True,krem,gri,acik,bilinmeyen,,giris,0.80,18519,
+tir17_beyaz_tenteli,beyaz,beyaz,True,True,True,lacivert,mavi,tenteli,bilinmeyen,,giris,0.80,17946,
