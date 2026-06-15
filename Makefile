@@ -1,4 +1,4 @@
-.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build perf test1-prepare test1-run
+.PHONY: help up down restart logs ps shell test test-integration fmt lint type migrate revision build perf eval test1-prepare test1-run
 
 # Default: help göster
 help:
@@ -31,6 +31,10 @@ help:
 	@echo ""
 	@echo "  make perf             — 60s perf testi (ARGS='...' ile override)"
 	@echo "  make perf ARGS='--duration 86400 --interval 30 --out perf-24h'"
+	@echo ""
+	@echo "VLM doğruluk eval (M3 tır-renk, eval/README.md):"
+	@echo "  make eval ARGS='--replay --labels tests/fixtures/eval/sample_gold.jsonl'  — offline replay (Ollama'sız)"
+	@echo "  make eval ARGS='--labels GOLD.jsonl --images IMGS/'  — canlı (stack ayakta)"
 
 up:
 	docker compose up -d
@@ -72,6 +76,9 @@ type:
 
 perf:
 	cd bridge && uv run python -m bridge.perf $(ARGS)
+
+eval:
+	cd bridge && uv run python -m bridge.eval $(ARGS)
 
 test1-prepare:
 	@bash scripts/test1-prepare.sh
