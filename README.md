@@ -3,7 +3,7 @@
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
 [![Faz: M7 sürüyor · M8 tasarım](https://img.shields.io/badge/Faz-M7%20sürüyor%20·%20M8%20tasarım-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
-[![Test: 140 unit · ruff · mypy strict](https://img.shields.io/badge/Test-140%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
+[![Test: 167 unit · ruff · mypy strict](https://img.shields.io/badge/Test-167%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/commits/main)
 [![Issues](https://img.shields.io/github/issues/ibrahimSumbul/ai_nvr)](https://github.com/ibrahimSumbul/ai_nvr/issues)
@@ -24,7 +24,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M1 — Docker stack iskeleti | ✅ | 5 servis, Alembic, CI |
 | M2 — Tek kamera pilot | ✅ | Zone state machine, ilk-giriş alarmı, snapshot |
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
-| M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) |
+| M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) + **doğruluk eval'i** (etiketli gold set, [`eval/`](eval/README.md)) |
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
 | M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera + dashboard ✅ (10 panel) + **perf harness & 1h baseline ✅**; 10 gerçek kamera + uzun soak kaldı |
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
@@ -32,7 +32,9 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
 | M8 — Adli davranış zekası | 🔬 tasarım | "Olayı açıkla; ölçüleni çıkarsanandan ayır" — spec + Appendix A build kontratları ✅, kod ⬜ |
 
-**Ölçülebilir kanıt:** ilk 1 saatlik altyapı soak'ı geçti — 6 RTSP @5fps, detector p95 **41 ms** (eşik 200), RAM/CPU drift yok ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), dürüst katmanlı kriterlerle).
+**Ölçülebilir kanıt (altyapı):** ilk 1 saatlik altyapı soak'ı geçti — 6 RTSP @5fps, detector p95 **41 ms** (eşik 200), RAM/CPU drift yok ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), dürüst katmanlı kriterlerle).
+
+**Ölçülebilir kanıt (AI kalite):** M3 tır-renk VLM'i artık etiketli gold sete karşı **ölçülüyor** — şemaya uyduğu değil (`test_llm.py`), çıkarımının *doğru* olduğu. İlk canlı baseline (qwen2.5vl:7b, N=7): çekici renk doğruluğu **%85.7** / Cohen κ **0.82** güçlü ✓; ama dorse tipi (**0/7** — model çekimser), dorse rengi (**%17**) ve güven kalibrasyonu (ECE **0.26**) zayıf → harness bunları gate'ler, koşum **kasıtlı "kaldı"** ([`eval/runs/cam_tir-20260615/FINDINGS.md`](eval/runs/cam_tir-20260615/FINDINGS.md), protokol [`eval/README.md`](eval/README.md)). "Ölçülen ≠ abartılan" ilkesi modelin kendisine uygulandı: ne işe yaradığı kadar, **ne yaramadığı da** raporlanır.
 
 Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14`](docs/14-testing-and-production-readiness.md).
 
@@ -40,7 +42,7 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14
 
 **Kuzey yıldızı:** soyut bir demo değil — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan ve ölçülebilir bir açık-kaynak AI sistemi.* Bu yüzden "ne kanıtlandı, ne varsayım" ayrımı en az kod kadar önemli (ilke: **ölçülen ≠ çıkarsanan**).
 
-**Test merdiveni:** unit (~140) → gerçek-bağımlılık E2E (Postgres+Frigate) → gerçek video E2E (tır → Ollama) → **perf soak (1h ✅ · 6h/24h planlı)** → doc13 demo (M8.1) → gerçek saha pilotu. Şu an 4. basamaktayız.
+**Test merdiveni:** unit (~167) → gerçek-bağımlılık E2E (Postgres+Frigate) → gerçek video E2E (tır → Ollama) + **VLM doğruluk eval'i** (gold set) → **perf soak (1h ✅ · 6h/24h planlı)** → doc13 demo (M8.1) → gerçek saha pilotu. Şu an 4. basamaktayız.
 
 **Sahaya çıkış planı:**
 1. **Uzun soak** — ısınmalı Run 2, ardından 6h/24h (Terminal + `caffeinate`); metodoloji ve katmanlı kriterler [`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md).
@@ -127,7 +129,7 @@ docker compose logs bridge    # "bridge.ready ... cameras=N zones=N"
 ```bash
 cd bridge
 uv sync --group dev                     # bağımlılıklar
-uv run --group dev pytest -m "not integration"   # ~140 unit test
+uv run --group dev pytest -m "not integration"   # ~167 unit test
 uv run --group dev ruff check . && uv run --group dev mypy bridge
 ```
 
@@ -162,6 +164,7 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) | _(planlı, M8)_ Adli davranış zekası: ölçülen≠çıkarsanan grounding + build kontratları (Appendix A) |
 | [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md) | _(planlı, M8)_ 5-kamera somut forensic demo senaryosu |
 | [`docs/14-testing-and-production-readiness.md`](docs/14-testing-and-production-readiness.md) | Test merdiveni + perf soak (1h/6h/24h) + gerçek sahaya çıkış checklist |
+| [`eval/README.md`](eval/README.md) | VLM doğruluk eval protokolü (M3 tır-renk) + canlı baseline çıktıları (`eval/runs/`) |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
 ## Bilinen Sınırlar & Dürüst Öz-değerlendirme
@@ -170,6 +173,7 @@ Bu projenin merkez ilkesi — **ölçülen ≠ çıkarsanan** — sadece sisteme
 
 - **Gerçek Dahua NVR'da hiç koşmadı.** Tüm uçtan-uca doğrulama dev-stack + MediaMTX test stream'leri üzerinde yapıldı. Canlı NVR'a external alarm geri-beslemesi (M4) kod olarak tamam ve mock/retry ile test edildi, ama gerçek bir DSS/SmartPSS paneline karşı doğrulanmadı.
 - **Performans kanıtı ince.** Geçen tek şey 1 saatlik altyapı baseline'ı (6 kamera @5fps, detector p95 41 ms). 6h/24h uzun soak ve 10+ kamera ölçeği henüz koşulmadı — metodoloji ve katmanlı kriterler hazır ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md)), koşum bekliyor.
+- **AI doğruluğu yalnız bir bootstrap baseline ile ölçüldü.** Tır-renk VLM'i artık etiketli sete karşı *ölçülüyor* (eskiden yalnız parse test ediliyordu) — doğru yönde gerçek bir adım. Ama ilk baseline bilinçli küçük: N=7, tek video kaynağı, tek (AI-destekli) annotator, tam-kare girdi (üretimdeki bbox-crop'tan zor → sayılar muhtemelen alt sınır). docs/12 §A.9'un hedef 2-annotatör / κ≥0.8 barına ulaşmaz. Sonuç **karışık ve açıkça öyle raporlanıyor**: çekici renk güvenilir (%85.7 / κ 0.82), ama dorse tipi/rengi ve güven kalibrasyonu zayıf — bunlar fact olarak sunulmamalı ([`eval/runs/cam_tir-20260615/FINDINGS.md`](eval/runs/cam_tir-20260615/FINDINGS.md)).
 - **Manşet özellik (M8 — adli davranış zekası) henüz kodsuz.** Spec + grounding kontratı + build kontratları (Appendix A) yazıldı; implementasyon yok. Durumu "tasarım", "çalışıyor" değil — başlıkta ve ROADMAP'te böyle işaretli.
 - **Donanım hızlandırma ölçülmedi.** Sistem CPU-only çalışır ve test böyle yapıldı; Coral USB opsiyonel ve henüz kıyaslanmadı. Çok-kamera ölçeğinde CPU yeterliliği gerçek donanımda doğrulanmalı.
 - **Bilinçli kapsam sınırları.** Plaka okumaz (KVKK), ham video FIFO'su NVR'ın işidir, e-posta/viewer entegrasyonu kapsam dışıdır ([`docs/09`](docs/09-notifications.md)).
