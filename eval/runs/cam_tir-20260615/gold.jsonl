@@ -1,0 +1,7 @@
+{"image_id": "tir01_beyaz_tenteli", "image": "tir01.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "beyaz", "dorse_var_mi": true, "dorse_rengi": "beyaz", "dorse_tipi": "tenteli", "yon": null}}
+{"image_id": "tir04_kirmizi_tenteli", "image": "tir04.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "kirmizi", "dorse_var_mi": true, "dorse_rengi": "lacivert", "dorse_tipi": "tenteli", "yon": null}}
+{"image_id": "tir07_sari_tenteli", "image": "tir07.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "sari", "dorse_var_mi": true, "dorse_rengi": "beyaz", "dorse_tipi": "tenteli", "yon": null}}
+{"image_id": "tir12_lacivert_tenteli", "image": "tir12.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "lacivert", "dorse_var_mi": true, "dorse_rengi": "kirmizi", "dorse_tipi": "tenteli", "yon": null}}
+{"image_id": "tir14_yesil_acik", "image": "tir14.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "yesil", "dorse_var_mi": true, "dorse_rengi": null, "dorse_tipi": "acik", "yon": null}}
+{"image_id": "tir15_yesil_acik_arka", "image": "tir15.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "yesil", "dorse_var_mi": true, "dorse_rengi": "krem", "dorse_tipi": "acik", "yon": null}}
+{"image_id": "tir17_beyaz_tenteli", "image": "tir17.jpg", "tag": "cam_tir", "expected": {"tir_var_mi": true, "cekici_rengi": "beyaz", "dorse_var_mi": true, "dorse_rengi": "lacivert", "dorse_tipi": "tenteli", "yon": null}}
