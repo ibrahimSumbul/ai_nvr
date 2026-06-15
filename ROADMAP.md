@@ -106,8 +106,9 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [x] **M3 öncesi prereq**: `reset_admin_password: false` + Ollama host + `qwen2.5vl:7b`
 
 - [x] **Gerçek E2E** (PR #20): YouTube tır videosu → MediaMTX → Frigate truck detect → bridge → Ollama → `truck_events`. 4 gerçek kayıt (beyaz çekici, gri/metalik dorse). Kritik fix: **labelmap `7:truck` override** (Frigate default modeli truck'ı "car" sanıyordu — YOLO gerekmedi). Ayrıca cam_tir zone'suz iken detection başlamadı, zone ekleyince çalıştı (ampirik; kesin neden doğrulanmadı).
+- [x] **Doğruluk eval'i** (PR #32 harness + PR #33 baseline): `bridge/eval.py` + `make eval` — `analyze_truck`'ı etiketli gold sete karşı ölçer (şema/parse değil, **doğruluk**: per-alan accuracy, presence P/R/F1, çekici renk Cohen κ, güven kalibrasyonu ECE; saf scorer'lar `perf.py`'nin `Stat`/`CheckResult`/`Verdict` parçalarını reuse eder, eşikler için ayrı lokal `Thresholds`; replay + canlı iki mod; +25 test). İlk **canlı** baseline (`eval/runs/cam_tir-20260615/`, qwen2.5vl:7b, N=7): çekici renk **%85.7** / κ 0.82 ✓; dorse tipi 0/7 (model çekimser) + dorse renk %17 + ECE 0.26 ✗ → koşum kasıtlı "kaldı" (exit 1), dürüst raporlanır. Protokol/sınırlar: [`eval/README.md`](eval/README.md). docs/12 §A.9 M8 davranış-anlatısı eval'i bu iskeleti genişletecek.
 
-**Doğrulama**: ✅ Smoke (PR #6, #9) + ✅ **gerçek video E2E** (PR #20) — Frigate truck detect → Ollama renk analizi → `truck_events`. Latency ~46s (CPU 320px model).
+**Doğrulama**: ✅ Smoke (PR #6, #9) + ✅ **gerçek video E2E** (PR #20) — Frigate truck detect → Ollama renk analizi → `truck_events`. Latency ~46s (CPU 320px model). ✅ **Doğruluk ölçüldü** (eval harness + canlı baseline, yukarı) — "tasarladım" değil "ölçtüm".
 
 ---
 
@@ -195,7 +196,7 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 - [ ] **M8.1 — Grounded rapor (tek kamera)**: occupancy session (per-zone, A.2) + **üç-sınıflı grounding** (ÖLÇÜLEN/TÜRETİLMİŞ/ÇIKARSANAN) + person∩obje bbox örtüşmesi + ROI before/after diff + tek `behavior_narrative` VLM çağrısı (anti-confab şema + marker↔confidence validator + writer-side numeric/kimlik scrub) + çok-bloklu rapor + alarm/DB (`occupancy_sessions`/`incident_reports`, alembic `0003`). *Manşeti ayağa kaldıran dilim.*
 - [ ] **M8.2 — Handoff (2. kamera)**: `camera_topology` + spatial-temporal eşleştirme (belirsizlik kuralı + saat-kayması payı; görünüm-tabanlı Re-ID **değil**).
 - [ ] **M8.3 — Dismissal-learning loop**: feedback yakalama + suppress/cache + token/olay eğrisi ölçümü (ürün-tarafı Reflexion; `llm_usage`'tan kanıt).
-- [ ] **Kabul** (`bridge/eval.py`, `make eval`): grounding ≥%98, confabulation≈0 (içerik-farkında audit), token-eğrisi ≥%30↓, handoff precision ≥0.90 / recall ≥0.80.
+- [ ] **Kabul** (`bridge/eval.py`, `make eval` — eval iskeleti M3 doğruluk eval'iyle **kuruldu** (PR #32): `Thresholds`/`Verdict` + saf scorer'lar; M8 davranış-anlatısı metriklerine genişletilecek): grounding ≥%98, confabulation≈0 (içerik-farkında audit), token-eğrisi ≥%30↓, handoff precision ≥0.90 / recall ≥0.80.
 
 ### Diğer genişletme fırsatları (opsiyonel)
 - [ ] Yüz tanıma (CompreFace) — yetki kontrolü için (KVKK: Appendix A.8 saklama/profilleme kuralları geçerli)
@@ -225,3 +226,4 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 | 2026-05-31 | **LLM: Haiku → lokal Ollama** (M3) | Aylık $0 (electric), görüntüler tesisten çıkmaz (gizlilik), kota/rate-limit yok. `LLM_PROVIDER` switch ile Anthropic hibrit ileride opsiyonel. Önceki "Haiku bütçe" kararları geçersiz. |
 | 2026-05-31 | **E-posta/viewer kapsam dışı — DMSS push yeterli** | Güvenlik operasyonu zaten DMSS mobil app kullanıyor. M4 external alarm → NVR push kuralı → DMSS bildirimi. Ayrı SMTP/viewer/HMAC altyapısı gereksiz karmaşıklık. |
 | 2026-06-06 | **M8 = adli davranış zekası; `docs/12` + Appendix A build kontratları** | Portföy manşeti: "olayı açıkla, ölçüleni çıkarsanandan ayır". Spec 3 adversarial geçişle (red-team/completeness/consistency) sertleştirildi; M8 fazlandı (8.1 grounded rapor → 8.2 handoff → 8.3 dismissal loop). Tasarım — henüz kod yok. |
+| 2026-06-15 | **VLM doğruluk eval harness + ilk canlı baseline** (PR #32/#33) | Portföy review'da ortak boşluk: AI çıktısının *doğruluğu* hiç ölçülmemişti (`test_llm.py` yalnız şema/parse'ı test eder). `bridge/eval.py` shipped M3 tır-renk'i etiketli gold sete karşı ölçer → "tasarladım"ı "ölçtüm"e çevirir. İlk baseline (N=7) bilinçli küçük/dürüst: çekici renk güçlü, dorse tipi/renk + kalibrasyon zayıf, gate'li raporlanır. Kapsam = shipped M3 (M8 §A.9 tasarımı değil); aynı iskelet M8 davranış-anlatısı eval'ine genişletilecek. |
