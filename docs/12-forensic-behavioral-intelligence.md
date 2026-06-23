@@ -260,7 +260,9 @@ Red-team verdict'i nettir: tasarım naif "VLM'e sahneyi anlattır"dan **maddi ol
 
 ---
 
-## A.3 — Veri modeli (alembic `0003`)
+## A.3 — Veri modeli (alembic `0005`)
+
+> ⚠ **Migration no güncellendi:** 0001–0004 alındı (M1–M7; `0003`=disk_status, `0004`=service_status). M8 tabloları (`occupancy_sessions`/`incident_reports`/`camera_topology`) henüz **YOK** → ilk boş slot **`0005`** (M8.1'de oluşturulur).
 
 Konvansiyon: raw `op.execute` SQL (0001/0002 deseni), `BIGSERIAL PRIMARY KEY`, `metadata JSONB DEFAULT '{}'::jsonb`, `idx_<table>_<cols>` (ts DESC), `downgrade` FK-sırasıyla `DROP TABLE IF EXISTS`.
 

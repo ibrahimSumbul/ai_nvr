@@ -22,7 +22,7 @@ gerçek donanım/saha gerektirir.
 
 | # | Katman | Ne doğrular | Durum | Kanıt |
 |---|--------|-------------|-------|-------|
-| 1 | **Unit** (~140 test) | Saf mantık: state machine, dedup, retry, eşik, histerezis, parse | ✅ CI'da zorunlu | `bridge/tests/`, mypy strict + ruff |
+| 1 | **Unit** (~167 test) | Saf mantık: state machine, dedup, retry, eşik, histerezis, parse | ✅ CI'da zorunlu | `bridge/tests/`, mypy strict + ruff |
 | 2 | **Gerçek-bağımlılık E2E** | Canlı Postgres + Frigate ile insert/close/poll | ✅ manuel | M2/M6.5 gerçek-Postgres, M7 gerçek-Frigate `/api/stats` (5 kamera online) |
 | 3 | **Gerçek video E2E** | YouTube tır videosu → Frigate detect → Ollama → `truck_events` | ✅ | 4 `truck_events` (PR #20) |
 | 4 | **Perf soak — altyapı** | 6 RTSP @5fps yük altında RAM/CPU/detector/skip stabilitesi | 🟡 1h ✅ · 6h/24h planlı | [`perf/runs/test1/FINDINGS.md`](../perf/runs/test1/FINDINGS.md) |
@@ -143,7 +143,7 @@ tesisine kuracak açık-kaynak kullanıcısı için de geçerli.
 | Soru | Cevap |
 |------|-------|
 | Çalışıyor mu? | ✅ Dev-stack'te uçtan uca; ⬜ gerçek NVR'da değil. |
-| Ölçülebilir kanıt var mı? | ✅ 1h baseline (p95 41 ms) + ~140 test; uzun soak + saha kaldı. |
+| Ölçülebilir kanıt var mı? | ✅ 1h baseline (p95 41 ms) + ~167 test; uzun soak + saha kaldı. |
 | Manşet özellik (forensic) hazır mı? | 🔬 Tasarım + build kontratları ✅; kod ⬜ (M8.1). |
 | Üretime ne kadar uzak? | doc13 demo → §4 saha checklist → pilot. Adımlar net, sırada. |
 
