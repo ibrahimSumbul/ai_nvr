@@ -7,7 +7,7 @@ Bu proje **PoC** olarak başlar, ama her milestone **production-ready** kalite h
 - [x] Mimari kararları (Frigate + Haiku + Dahua bridge)
 - [x] Donanım planı (PoC: CPU, prod: Coral USB)
 - [x] Maliyet analizi (PoC $10/ay, Production $25/ay)
-- [x] Tüm `docs/` dosyaları tamam (10 doküman)
+- [x] Tüm `docs/` dosyaları tamam (11 doküman: 01–11)
 - [x] Repository açılışı + draft PR #1
 
 **Çıktı**: Bu repodaki `ai-nvr/` klasörü.
@@ -189,11 +189,11 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ## Milestone 8: Adli Davranış Zekası (forensic behavioral intelligence) 🔬 tasarım
 
-**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**). Somut 5-kamera demo senaryosu (sahnelenecek/kodlanacak): [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md).
+**Hedef**: Sistem olayı yalnız *tespit* etmez, **açıklar** — ve **gördüğü ile çıkardığını ayırarak** (ÖLÇÜLEN ≠ ÇIKARSANAN). Portföy manşeti. Tam tasarım + build kontratları: [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) (§12.1–12.12 + adversarial-doğrulanmış **Appendix A**). Somut 5-kamera demo senaryosu (sahnelenecek/kodlanacak): [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md). QR giriş-kimliği / dok-kapı uzantısı + uyarlanabilir yakalama tasarımı: [`docs/15`](docs/15-adaptive-capture.md) + [`docs/16`](docs/16-qr-entrance-camera.md) (PR #35).
 
 **Statü**: spec ✅, kod ❌. Spec üç adversarial geçişle sertleştirildi (red-team / completeness / consistency). Build öncesi **bloker kararlar Appendix A'da çözüldü**: sessionization (per-zone), PII/KVKK saklama+profilleme, ROI BEFORE-frame kaynağı, degraded yol, idempotency.
 
-- [ ] **M8.1 — Grounded rapor (tek kamera)**: occupancy session (per-zone, A.2) + **üç-sınıflı grounding** (ÖLÇÜLEN/TÜRETİLMİŞ/ÇIKARSANAN) + person∩obje bbox örtüşmesi + ROI before/after diff + tek `behavior_narrative` VLM çağrısı (anti-confab şema + marker↔confidence validator + writer-side numeric/kimlik scrub) + çok-bloklu rapor + alarm/DB (`occupancy_sessions`/`incident_reports`, alembic `0003`). *Manşeti ayağa kaldıran dilim.*
+- [ ] **M8.1 — Grounded rapor (tek kamera)**: occupancy session (per-zone, A.2) + **üç-sınıflı grounding** (ÖLÇÜLEN/TÜRETİLMİŞ/ÇIKARSANAN) + person∩obje bbox örtüşmesi + ROI before/after diff + tek `behavior_narrative` VLM çağrısı (anti-confab şema + marker↔confidence validator + writer-side numeric/kimlik scrub) + çok-bloklu rapor + alarm/DB (`occupancy_sessions`/`incident_reports`, alembic `0005` — ⚠ 0003/0004 M7'de alındı: disk_status/service_status). *Manşeti ayağa kaldıran dilim.*
 - [ ] **M8.2 — Handoff (2. kamera)**: `camera_topology` + spatial-temporal eşleştirme (belirsizlik kuralı + saat-kayması payı; görünüm-tabanlı Re-ID **değil**).
 - [ ] **M8.3 — Dismissal-learning loop**: feedback yakalama + suppress/cache + token/olay eğrisi ölçümü (ürün-tarafı Reflexion; `llm_usage`'tan kanıt).
 - [ ] **Kabul** (`bridge/eval.py`, `make eval` — eval iskeleti M3 doğruluk eval'iyle **kuruldu** (PR #32): `Thresholds`/`Verdict` + saf scorer'lar; M8 davranış-anlatısı metriklerine genişletilecek): grounding ≥%98, confabulation≈0 (içerik-farkında audit), token-eğrisi ≥%30↓, handoff precision ≥0.90 / recall ≥0.80.
@@ -227,3 +227,4 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 | 2026-05-31 | **E-posta/viewer kapsam dışı — DMSS push yeterli** | Güvenlik operasyonu zaten DMSS mobil app kullanıyor. M4 external alarm → NVR push kuralı → DMSS bildirimi. Ayrı SMTP/viewer/HMAC altyapısı gereksiz karmaşıklık. |
 | 2026-06-06 | **M8 = adli davranış zekası; `docs/12` + Appendix A build kontratları** | Portföy manşeti: "olayı açıkla, ölçüleni çıkarsanandan ayır". Spec 3 adversarial geçişle (red-team/completeness/consistency) sertleştirildi; M8 fazlandı (8.1 grounded rapor → 8.2 handoff → 8.3 dismissal loop). Tasarım — henüz kod yok. |
 | 2026-06-15 | **VLM doğruluk eval harness + ilk canlı baseline** (PR #32/#33) | Portföy review'da ortak boşluk: AI çıktısının *doğruluğu* hiç ölçülmemişti (`test_llm.py` yalnız şema/parse'ı test eder). `bridge/eval.py` shipped M3 tır-renk'i etiketli gold sete karşı ölçer → "tasarladım"ı "ölçtüm"e çevirir. İlk baseline (N=7) bilinçli küçük/dürüst: çekici renk güçlü, dorse tipi/renk + kalibrasyon zayıf, gate'li raporlanır. Kapsam = shipped M3 (M8 §A.9 tasarımı değil); aynı iskelet M8 davranış-anlatısı eval'ine genişletilecek. |
+| 2026-06-23 | **M8 QR-giriş tasarım ekleri** (PR #35) | `docs/15` (uyarlanabilir yakalama) + `docs/16` (lens/boyut/blur analizi) eklendi — 2026-06-06 M8 tasarım kontratının alt-rafinasyonu, **kod yok**; M8.1 grounded rapor için ön-koşul. F0100 opak placard + e-İrsaliye 4-yönlü uzlaştırma; QR veri = kısa opak token (URL/manifest değil). |

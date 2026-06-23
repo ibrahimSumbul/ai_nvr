@@ -16,6 +16,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
 ### Added
 
+**M8 — QR giriş-kimliği tasarım ekleri** (PR #35) — _tasarım/doküman; kod YOK_
+- `docs/15-adaptive-capture.md` — ortam-duyarlı (kapalı-döngü) görüntü yakalama: göreve-özel QR-okunabilirlik optimizasyonu. Tüm ayar kararları (shutter/gain/IR/profil) **ÖLÇÜLEN** deterministik sinyaller üzerinde (decode başarı oranı geri-besleme); VLM döngüde **yok**. Grounding kontratına (ölçülen≠çıkarsanan) bağlanış + "AE foton yaratamaz" fizik sınırı + QR veri kararı (kısa opak token `F0100…`, anlam sunucu-tarafı değişebilir eşlemede lookup).
+- `docs/16-qr-entrance-camera.md` — QR giriş kamerası boyutlandırma & lens analizi: FOV = D·sensör_w/f, lens × mesafe × min QR-placard tablosu, motion-blur/shutter, DoF/ışık takasları, F0100 placard + e-İrsaliye 4-yönlü uzlaştırma (QR-token / fiziksel-tır / e-İrsaliye / kamera). M8.1 grounded rapor tasarımına bağlı.
+
 **M3 — VLM doğruluk eval harness** (PR #32)
 - `bridge/bridge/eval.py` — `analyze_truck` (qwen2.5vl) çıkarımını etiketli gold sete karşı **doğruluk** olarak ölçer (`bridge/tests/test_llm.py` yalnız Pydantic şema/parse'ı doğrular: geçerli JSON → tipli alan, geçersiz renk → `ValidationError`, unicode → ASCII; ama çıkarımın *doğru* olduğunu değil). Saf scorer'lar: per-alan exact-match accuracy (çekici/dorse renk, dorse tipi, yön; cevapsız tahmin = yanlış), presence P/R/F1 + confusion (tır/dorse var-mı), renk confusion matrix, çekici renk Cohen κ (şans-düzeltmeli uyum), güven kalibrasyonu ECE (güven bantlarına göre kovalanan doğruluk), latency. `perf.py`'nin `Stat`/`CheckResult`/`Verdict` iskeletini reuse eder; çıktı CSV (görüntü başına audit — gold vs tahmin) + JSON özet + stdout tablo + exit 0/1.
 - İki çalışma modu: **replay** (Ollama'sız — CI/regresyon; kayıtlı ham yanıtı üretimdeki `model_validate_json` unicode-normalize yolundan birebir geçirir) + **canlı** (host'ta, gerçek etiketli görüntülerle asıl ölçüm, perf.py gibi). `Makefile` `eval` hedefi (`make eval ARGS="..."`).

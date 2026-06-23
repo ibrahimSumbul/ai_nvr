@@ -17,7 +17,7 @@ Bu sistemin en kritik mantığı: **gereksiz alarm üretme, ama gerçek olayı k
 1. Kapı kameraları (yaklaşık 5 adet) her geçişte alarm üretir.
 2. **Saniye hassasiyetinde** giriş ve çıkış zamanları kaydedilir.
 3. Geçiş yönü tahmin edilir (giren / çıkan).
-4. Olay e-posta ile bildirilir; e-postada **canlı izlenebilir link** bulunur (snapshot + kısa video klip).
+4. Olay **DMSS mobil push** ile bildirilir (Dahua external alarm üzerinden — M6.5 gerçek mekanizma). _E-posta/canlı-link/klip alanları `door_events` şemasında **rezerve** ama **kapsam dışı** (bkz. [`09-notifications.md`](09-notifications.md), karar 2026-05-31)._
 5. Oda kuralından farklı olarak: kapı olayı **her geçişte** alarm üretir, "ilk giriş" mantığı uygulanmaz.
 
 ## State Machine Tanımı
@@ -60,7 +60,7 @@ Ek olarak bir geçici durum: `EXIT_PENDING`
 
 ### Kapı olayları
 
-| Olay | Tetikleyici | Kaydedilir mi? | Alarm + E-posta? |
+| Olay | Tetikleyici | Kaydedilir mi? | Alarm (DMSS push)? |
 |---|---|---|---|
 | `door.entry` | Kişi kapı zone'una girdi | ✅ Saniye hassasiyetinde | ✅ Evet |
 | `door.exit` | Kişi kapı zone'undan ayrıldı | ✅ Saniye hassasiyetinde | ✅ Evet (aynı olayla birleşik) |
@@ -104,8 +104,11 @@ zones:
     rules:
       enabled: true
       track_objects: [truck, car]
-      truck_color_analysis: true    # lokal Ollama ile renk
       first_entry_alarm: true
+      # NOT: tır renk analizi bir zone kuralı DEĞİL — Frigate 'truck' etiketi
+      # otomatik olarak trucks.py → Ollama akışını tetikler (zone'dan bağımsız;
+      # eşik = LLM_TRUCK_MIN_SCORE). 'truck_color_analysis' alanı şemada YOK
+      # (ZoneRules extra='forbid' → böyle bir anahtar config'i reddeder).
 
   # Kapı: oda mantığından farklı, her geçişte alarm
   - name: door_ana_giris
@@ -116,9 +119,9 @@ zones:
       enabled: true
       track_objects: [person]
       log_precision: second         # ms hassasiyet
-      direction_detection: true     # giriş/çıkış yönü
-      email_notification: true      # her geçişte e-posta gönder
-      include_short_clip: true      # snapshot + 5 sn klip
+      direction_detection: true     # giriş/çıkış yönü (alternating in/out)
+      email_notification: false     # KAPSAM DIŞI (şemada rezerve) — bildirim DMSS push ile
+      include_short_clip: false     # KAPSAM DIŞI (rezerve) — klip üretimi implemente değil
       cooldown_seconds: 3           # aynı kişi 3 sn içinde yeniden tetiklemez
       active_hours: "00:00-23:59"
 
@@ -131,7 +134,7 @@ zones:
       track_objects: [person]
       log_precision: second
       direction_detection: true
-      email_notification: true
+      email_notification: false     # DMSS push (yukarı); e-posta kapsam dışı
       cooldown_seconds: 3
       active_hours: "00:00-23:59"
 ```
@@ -234,57 +237,58 @@ Oda state machine'inden ayrı, paralel çalışır.
                  ▼                                     │
           ┌─────────────┐                              │
           │ TRAVERSED   │                              │
-          │ exit_ts var │ ───── E-posta + DB ─────────►│
+          │ exit_ts var │ ── Dahua alarm + DB ───────►│
           └─────────────┘
 ```
 
 Pseudocode:
 
 ```python
-class DoorTraversalDetector:
-    def __init__(self, cfg, db, mailer, snapshotter):
-        self.cfg = cfg
-        self.active = {}  # tracking_id -> {entry_ts, entry_snapshot}
+# Gerçek implementasyon: bridge/doors.py — DoorStateMachine.
+# Model: "alternating in/out" — açık oturum yoksa geçiş GİRİŞ (entry_ts),
+# varsa ÇIKIŞ (exit_ts + duration_ms). Bildirim = Dahua external alarm → DMSS push.
+class DoorStateMachine:
+    def __init__(self, cfg, db, snapshots, clock=utcnow, dahua=None):
+        self._cfg = cfg
+        self._db = db
+        self._snapshots = snapshots
+        self._clock = clock
+        self._dahua = dahua
+        self._open_event_id = None       # None → sıradaki geçiş "in"
+        self._open_entry_ts = None
+        self._processed_ids = set()      # heartbeat dedup (zone içi tekrar)
+        self._last_traversal_ts = None
 
-    async def on_zone_enter(self, event):
-        tid = event.tracking_id
-        if tid in self.active:
-            return  # zaten içeride
-        self.active[tid] = {
-            "entry_ts": event.ts_ms,  # millisecond
-            "entry_snapshot": await snapshotter.save(event),
-            "direction_hint_start": event.bbox_position,
-        }
+    async def on_event(self, event):
+        # Filtre: enabled, event.label ∈ track_objects, score ≥ min_person_score.
+        # event.type == "end" → tracking bitti, _processed_ids'ten temizle
+        #   (yoksa 7/24 bellek sızıntısı; aynı kişi tekrar girince yeni geçiş).
+        # Zone içinde + tracking_id yeni + cooldown geçmiş → bir geçiş:
+        await self._handle_traversal(event, self._clock())
 
-    async def on_zone_exit(self, event):
-        tid = event.tracking_id
-        if tid not in self.active:
-            return
-
-        rec = self.active.pop(tid)
-        exit_ts = event.ts_ms
-        duration_ms = exit_ts - rec["entry_ts"]
-        direction = self._infer_direction(
-            rec["direction_hint_start"],
-            event.bbox_position,
-        )
-
-        event_id = await self.db.insert_door_event(
-            zone=self.cfg.name,
-            entry_ts=rec["entry_ts"],
-            exit_ts=exit_ts,
-            duration_ms=duration_ms,
-            direction=direction,
-            entry_snapshot=rec["entry_snapshot"],
-            exit_snapshot=await snapshotter.save(event),
-        )
-
-        if self.cfg.email_notification:
-            await self.mailer.send_door_event(event_id)
-
-        if self.cfg.include_short_clip:
-            await snapshotter.queue_clip(event_id, duration_seconds=5,
-                                         around_ts=rec["entry_ts"])
+    async def _handle_traversal(self, event, now):
+        # Snapshot best-effort (kanıt) — None olsa da geçiş loglanır.
+        snapshot = await self._snapshots.fetch_event_snapshot(event.event_id)
+        if self._open_event_id is None:
+            # GİRİŞ — yeni oturum aç
+            event_id = await self._db.insert_door_event(
+                zone=self._cfg.name, camera_id=event.camera, entry_ts=now,
+                direction="in", tracking_id=event.event_id,
+                entry_snapshot_path=snapshot,
+            )
+            self._open_event_id = event_id
+            self._open_entry_ts = now
+            await self._emit_dahua_alarm("door_entry")     # → DMSS push
+        else:
+            # ÇIKIŞ — açık oturumu kapat (duration_ms hesapla)
+            duration_ms = int((now - self._open_entry_ts).total_seconds() * 1000)
+            await self._db.close_door_event(
+                self._open_event_id, exit_ts=now, duration_ms=duration_ms,
+                exit_snapshot_path=snapshot,
+            )
+            self._open_event_id = None
+            self._open_entry_ts = None
+            await self._emit_dahua_alarm("door_exit")      # → DMSS push
 ```
 
 DB şeması ek:
@@ -300,17 +304,17 @@ CREATE TABLE door_events (
   direction TEXT,                       -- 'in' | 'out' | 'unknown'
   entry_snapshot_path TEXT,
   exit_snapshot_path TEXT,
-  clip_path TEXT,
-  email_sent BOOLEAN DEFAULT FALSE,
-  view_token TEXT UNIQUE,               -- signed link token
-  view_token_expires_at TIMESTAMPTZ
+  clip_path TEXT,                       -- REZERVE / kullanılmıyor (klip üretimi kapsam dışı)
+  email_sent BOOLEAN DEFAULT FALSE,     -- REZERVE / kullanılmıyor (e-posta kapsam dışı)
+  view_token TEXT UNIQUE,               -- REZERVE / kullanılmıyor (HMAC izleme linki kapsam dışı)
+  view_token_expires_at TIMESTAMPTZ     -- REZERVE / kullanılmıyor
 );
 
 CREATE INDEX ON door_events (zone, entry_ts DESC);
 CREATE INDEX ON door_events (view_token);
 ```
 
-E-posta + link akışı: bkz. [`09-notifications.md`](09-notifications.md).
+Bildirim akışı = **Dahua external alarm → DMSS push** (gerçek mekanizma, M6.5). `email_sent`/`view_token`/`view_token_expires_at`/`clip_path` kolonları şemada **rezerve ama kullanılmıyor** — e-posta/viewer/HMAC-link **kapsam dışı** (karar 2026-05-31): bkz. [`09-notifications.md`](09-notifications.md).
 
 ## Test Senaryoları
 
@@ -329,10 +333,10 @@ E-posta + link akışı: bkz. [`09-notifications.md`](09-notifications.md).
 
 | Test | Beklenen sonuç |
 |---|---|
-| Kişi kapıdan içeri geçer | 1 `door.traversal` (`direction=in`), entry_ts + exit_ts ms, e-posta |
+| Kişi kapıdan içeri geçer | 1 `door.traversal` (`direction=in`), entry_ts + exit_ts ms, DMSS push |
 | Kişi kapıda 2 sn durur, döner | 1 `door.traversal` (`direction=unknown`), kısa duration |
 | 2 kişi arka arkaya geçer | 2 ayrı `door.traversal` (Frigate `tracking_id` ayırır) |
-| Aynı kişi 1 saniye sonra tekrar geçer | Cooldown (3 sn) → tek olay, çift e-posta yok |
+| Aynı kişi 1 saniye sonra tekrar geçer | Cooldown (3 sn) → tek olay, çift alarm yok |
 | Kapı kameraları offline | Olay üretilmez, Frigate log alarmı düşer |
 
 Son satırdaki ince noktayı doğru anlamak için: **alarm sadece EMPTY → OCCUPIED geçişinde üretilir.**

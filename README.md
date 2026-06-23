@@ -30,7 +30,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
 | M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
 | M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
-| M8 — Adli davranış zekası | 🔬 tasarım | "Olayı açıkla; ölçüleni çıkarsanandan ayır" — spec + Appendix A build kontratları ✅, kod ⬜ |
+| M8 — Adli davranış zekası | 🔬 tasarım | "Olayı açıkla; ölçüleni çıkarsanandan ayır" — spec + Appendix A build kontratları + QR giriş-kimliği tasarım ekleri (docs/15-16) ✅, kod ⬜ |
 
 **Ölçülebilir kanıt (altyapı):** ilk 1 saatlik altyapı soak'ı geçti — 6 RTSP @5fps, detector p95 **41 ms** (eşik 200), RAM/CPU drift yok ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), dürüst katmanlı kriterlerle).
 
@@ -164,6 +164,8 @@ Lokal Ollama tercihinin gerekçesi (gizlilik + sıfır marjinal maliyet vs bulut
 | [`docs/12-forensic-behavioral-intelligence.md`](docs/12-forensic-behavioral-intelligence.md) | _(planlı, M8)_ Adli davranış zekası: ölçülen≠çıkarsanan grounding + build kontratları (Appendix A) |
 | [`docs/13-portfolio-demo-vision.md`](docs/13-portfolio-demo-vision.md) | _(planlı, M8)_ 5-kamera somut forensic demo senaryosu |
 | [`docs/14-testing-and-production-readiness.md`](docs/14-testing-and-production-readiness.md) | Test merdiveni + perf soak (1h/6h/24h) + gerçek sahaya çıkış checklist |
+| [`docs/15-adaptive-capture.md`](docs/15-adaptive-capture.md) | _(tasarım, M8)_ Ortam-duyarlı görüntü yakalama: QR/kimlik okunabilirliği için ölçülen-sinyal kapalı döngü |
+| [`docs/16-qr-entrance-camera.md`](docs/16-qr-entrance-camera.md) | _(tasarım, M8)_ QR giriş kamerası: lens × mesafe × QR-boyut + blur/ışık takasları + e-İrsaliye uzlaştırma |
 | [`eval/README.md`](eval/README.md) | VLM doğruluk eval protokolü (M3 tır-renk) + canlı baseline çıktıları (`eval/runs/`) |
 | [`ROADMAP.md`](ROADMAP.md) · [`CHANGELOG.md`](CHANGELOG.md) | Milestone planı · değişiklik kaydı |
 
