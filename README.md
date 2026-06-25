@@ -1,7 +1,7 @@
 # AI NVR — Dahua + Frigate + Ollama Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Durum: public referans v1.0 · değerlendirme özelde](https://img.shields.io/badge/Durum-public%20referans%20v1.0%20·%20değerlendirme%20özelde-blue.svg)](ROADMAP.md)
+[![Faz: M7 sürüyor · M8 tasarım](https://img.shields.io/badge/Faz-M7%20sürüyor%20·%20M8%20tasarım-green.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
 [![Test: 167 unit · ruff · mypy strict](https://img.shields.io/badge/Test-167%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
@@ -14,11 +14,9 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 
 > **Açık-kaynak referans + portföy projesi.** Amaç: mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI'ı — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan bir referans sistem* olarak sunmak. Soyut tasarım değil: çalışır kod + dokümantasyon + ölçülebilir kanıt.
 
-> 🔒 **Proje durumu (2026-06) — `v1.0-public` referans dondurma.** Sistem, gerçek bir kurumsal **lojistik/depo** ortamından sağlanan **gerçek saha görüntüleriyle değerlendirme** aşamasına ulaştı _(kurumun verdiği kayıtlı saha görüntüleri üzerinde; canlı Dahua NVR entegrasyonu hâlâ saha pilotuna bağlı — aşağıdaki dürüst öz-değerlendirmeye bakın)_. Bu görüntüler gizli olduğundan saha-özel geliştirme **özel bir repoya taşındı**; bu public repo **M0–M7 (çalışan dev-stack + Dahua köprüsü + operasyonel olgunluk) + M8 adli-davranış-zekası tasarım kontratları** noktasında **referans olarak donduruldu** ([`ROADMAP.md`](ROADMAP.md) → "Public yaşam döngüsü: dondurma"). Aşağıdaki milestone tablosu bu dondurma anını yansıtır.
-
 ## Durum
 
-> **Çekirdek pipeline çalışıyor** (dev-stack'te uçtan uca): 5 servis healthy; kamera → Frigate tespit → bridge zone state machine → Postgres + Dahua alarm + Ollama tır analizi → Grafana dashboard doğrulandı (lokal Colima + MediaMTX test stream). **Henüz gerçek Dahua NVR'da koşmadı** — sahaya çıkış planı aşağıda.
+> **Çekirdek pipeline çalışıyor** (dev-stack'te uçtan uca): 5 servis ayakta (postgres/mqtt/frigate/bridge healthy + Grafana running); kamera → Frigate tespit → bridge zone state machine → Postgres + Dahua alarm + Ollama tır analizi → Grafana dashboard doğrulandı (lokal Colima + MediaMTX test stream). **Henüz gerçek Dahua NVR'da koşmadı** — sahaya çıkış planı aşağıda.
 
 | Milestone | Durum | Özet |
 |---|---|---|
@@ -28,7 +26,7 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
 | M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) + **doğruluk eval'i** (etiketli gold set, [`eval/`](eval/README.md)) |
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
-| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera + dashboard ✅ (10 panel) + perf harness ✅; 1h baseline **koşuldu** (detector p95 41 ms ✓; harness Katman A gate'i RAM burn-in + test-loop skip'inde KALDI — bkz FINDINGS); 6h/24h + 10 gerçek kamera kaldı |
+| M5 — Çoklu kamera + Grafana | 🚧 | 6 kamera + dashboard ✅ (14 panel) + perf harness ✅; 1h baseline **koşuldu** (detector p95 41 ms ✓; harness Katman A gate'i RAM burn-in + test-loop skip'inde KALDI — bkz FINDINGS); 6h/24h + 10 gerçek kamera kaldı |
 | M6 — Coral USB upgrade | ⏸️ opsiyonel | CPU-only yeterli; donanım hızlandırma saha/üretim fazına bırakıldı (zorunlu değil) |
 | M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
 | M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
@@ -52,8 +50,6 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14
 3. **Gerçek pilot** — canlı Dahua NVR + gerçek kameralar; öncesinde donanım/ağ + NVR entegrasyonu + KVKK + operasyon checklist'i.
 
 Tüm test katmanları, soak metodolojisi ve sahaya-çıkış checklist'i: **[`docs/14 — Test Stratejisi ve Üretime Hazırlık`](docs/14-testing-and-production-readiness.md)**.
-
-> Bu yol haritası artık **özel bir repoda, gerçek kurumsal saha görüntüleriyle** ilerliyor; bu public repo `v1.0-public` referansında donduruldu (yukarıdaki durum notu).
 
 ## Ne Yapar?
 
@@ -115,7 +111,7 @@ docker compose up -d
 docker compose run --rm --entrypoint "" bridge alembic upgrade head
 
 # 6. Doğrula
-docker compose ps             # 5 servis 'healthy'
+docker compose ps             # 5 servis ayakta (4 healthy + Grafana 'running')
 docker compose logs bridge    # "bridge.ready ... cameras=N zones=N"
 ```
 

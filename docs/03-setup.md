@@ -143,7 +143,7 @@ ollama pull qwen2.5vl:7b   # ~5.6 GB vision model
 ollama list                # indirildiğini doğrula
 ```
 
-Container Ollama'ya `host.docker.internal:11434` üzerinden erişir (Linux'ta bu host adı Docker 20.10+ ile `--add-host` olmadan da çalışır; sorun olursa `LLM_OLLAMA_URL`'i host IP'siyle ayarla).
+Container Ollama'ya `host.docker.internal:11434` üzerinden erişir. Mac/Windows Docker Desktop'ta bu ad otomatik çözülür; **çıplak Linux Docker Engine'de çözülmez** — bu yüzden `docker-compose.yml`'de bridge ve frigate servislerine `extra_hosts: ["host.docker.internal:host-gateway"]` eklendi (Docker 20.10+ gerekir). Yine de sorun olursa `LLM_OLLAMA_URL`'i host IP'siyle ayarla.
 
 ## Adım 5: Stack'i başlat
 
@@ -160,7 +160,7 @@ ainvr-frigate     Up (healthy)   0.0.0.0:5100->5000/tcp
 ainvr-postgres    Up (healthy)   5432/tcp
 ainvr-mqtt        Up (healthy)   1883/tcp
 ainvr-bridge      Up (healthy)
-ainvr-grafana     Up (healthy)   0.0.0.0:3000->3000/tcp
+ainvr-grafana     Up             0.0.0.0:3000->3000/tcp
 ```
 
 ### Veritabanı şeması (ilk kurulumda zorunlu)

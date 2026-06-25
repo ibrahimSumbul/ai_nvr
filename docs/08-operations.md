@@ -27,7 +27,7 @@ Sağlık: `docker compose ps` → 5 container `healthy`. Ollama: `curl -s http:/
 **Aylık**
 - [ ] Frigate kalibrasyonu (gerekirse `min_score`/`threshold`)
 - [ ] DB backup doğrulaması (restore testi)
-- [ ] Image güncellemeleri: `docker compose pull && docker compose up -d`
+- [ ] Image güncellemeleri: `docker compose pull && docker compose up -d --build` (bridge yerelde derlenir → `pull` registry imajlarını, `--build` bridge'i tazeler)
 
 > **LLM maliyeti** izlenmez — Ollama lokal, marjinal maliyet $0. İzlenen metrik LLM **gecikme/başarı oranı** (Grafana). Donanım yetmiyorsa Coral USB (M6).
 

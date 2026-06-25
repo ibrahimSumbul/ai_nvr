@@ -69,6 +69,11 @@ services:
     image: ghcr.io/blakeblackshear/frigate:stable
     container_name: ainvr-frigate
     restart: unless-stopped
+    # Linux (çıplak Docker Engine) host.docker.internal'i otomatik çözmez; kameralar
+    # rtsp://host.docker.internal:8554 (MediaMTX/dev) için bu eşleme gerekir.
+    # Mac/Windows Docker Desktop'ta no-op.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     shm_size: 256mb
     environment:
       FRIGATE_MQTT_USER: ${MQTT_USER}
@@ -111,6 +116,10 @@ services:
     image: ainvr-bridge:0.2.0
     container_name: ainvr-bridge
     restart: unless-stopped
+    # Linux'ta host'taki Ollama'ya (host.docker.internal:11434) erişim için gerekir.
+    # Mac/Windows Docker Desktop'ta no-op.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file: .env
     environment:
       POSTGRES_HOST: postgres

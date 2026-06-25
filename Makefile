@@ -87,7 +87,7 @@ test1-run:
 	@bash scripts/test1-run.sh $(ID) $(DURATION)
 
 migrate:
-	docker compose exec bridge alembic upgrade head
+	docker compose run --rm --entrypoint "" bridge alembic upgrade head
 
 revision:
 	@if [ -z "$(NAME)" ]; then echo "Kullanım: make revision NAME=migration_adi"; exit 1; fi

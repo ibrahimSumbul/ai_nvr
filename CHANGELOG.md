@@ -3,11 +3,18 @@
 Bu dosya tüm önemli değişiklikleri kayıt altına alır.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
-## [v1.0-public] — 2026-06-24
+## [Unreleased]
 
-**Public referans dondurma.** Repo'nun public yaşam döngüsünün son sürümü. Çekirdek pipeline (M0–M7) dev-stack'te uçtan uca çalışır; M8 adli-davranış-zekası **tasarım kontratları** tamam (`docs/12` + Appendix A + `docs/15`–`16`), kod ⬜. Bundan sonrası gerçek bir kurumsal **lojistik/depo** ortamından sağlanan **gerçek saha görüntüleriyle değerlendirme** aşamasında ve **özel repoda** sürüyor (gizli görüntü → public repo dondu). Commit kimliği 3. geçmiş-yeniden-yazımıyla standartlaştırıldı (tek author/committer `96423728+ibrahimSumbul@users.noreply.github.com` + `Co-Authored-By`). Ayrıntı: [`ROADMAP.md`](ROADMAP.md) → "Public yaşam döngüsü: dondurma".
+`v1.0-public` referans etiketi M0–M7 + M8 tasarım anlık görüntüsü olarak korunur; public geliştirme **sürüyor** (gerçek kurumsal saha görüntüleriyle değerlendirme + özel-repo geçişi henüz yapılmadı).
 
 ### Fixed / Changed
+
+**Turnkey / taşınabilirlik (saha denetimi)**
+- `docker-compose.yml` — bridge + frigate servislerine `extra_hosts: ["host.docker.internal:host-gateway"]`: Linux'ta (çıplak Docker Engine) `host.docker.internal` otomatik çözülmüyordu → bridge→Ollama (tır analizi) ve Frigate→MediaMTX RTSP kopuyordu. Mac/Windows Docker Desktop'ta no-op.
+- `Makefile` — `make migrate` artık `docker compose run --rm` (eski `exec`, bridge taze kurulumda migrate öncesi crash-loop'ta olduğundan başarısız oluyordu; README zaten doğru formu kullanıyordu).
+- `docs/03-setup.md` — yanlış "Linux'ta `host.docker.internal` `--add-host` olmadan çalışır" iddiası düzeltildi (Docker 20.10 yalnız `host-gateway` özel değerini ekledi; ad otomatik çözülmez) + `docker compose ps` örnek çıktısında Grafana "Up" (healthcheck'siz).
+- `docs/08-operations.md` — image güncelleme komutu `docker compose up -d --build` (bridge yerelde derlendiğinden `pull` tek başına bridge'i tazelemez).
+- `README.md` — "5 servis healthy" → "4 healthy + Grafana running" (Grafana healthcheck'siz); Grafana panel 10→14, kamera 5→6 (config ile hizalandı).
 
 **Snapshot yaşam döngüsü sağlamlaştırma**
 - `bridge/trucks.py` — **snapshot-gated dedup**: Frigate snapshot'ı bir tracking session'ın ilk truck event'inde hazır değilse (`has_snapshot=false` veya fetch None) olay artık dedup'a (`_processed`) eklenmez → sonraki event'te (snapshot hazır olunca) tekrar denenir. Önceki sırada (önce dedup, sonra snapshot) ilk event snapshot'sız gelirse tır **kalıcı kayboluyordu**. Dedup yalnız snapshot başarısından sonra konur (analiz tam bir kez).
