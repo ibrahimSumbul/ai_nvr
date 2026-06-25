@@ -1,7 +1,7 @@
 # AI NVR — Dahua + Frigate + Ollama Hibrit Kamera Analitiği
 
 [![Lisans: MIT](https://img.shields.io/badge/Lisans-MIT-blue.svg)](LICENSE)
-[![Faz: M7 sürüyor · M8 tasarım](https://img.shields.io/badge/Faz-M7%20sürüyor%20·%20M8%20tasarım-green.svg)](ROADMAP.md)
+[![Durum: public referans v1.0 · değerlendirme özelde](https://img.shields.io/badge/Durum-public%20referans%20v1.0%20·%20değerlendirme%20özelde-blue.svg)](ROADMAP.md)
 [![Stack: Python · Frigate · Postgres · Ollama · Grafana](https://img.shields.io/badge/Stack-Python%20·%20Frigate%20·%20Postgres%20·%20Ollama%20·%20Grafana-534AB7.svg)](docs/11-tech-decisions.md)
 [![Test: 167 unit · ruff · mypy strict](https://img.shields.io/badge/Test-167%20unit%20·%20ruff%20·%20mypy%20strict-success.svg)](bridge/tests)
 [![Stars](https://img.shields.io/github/stars/ibrahimSumbul/ai_nvr?style=social)](https://github.com/ibrahimSumbul/ai_nvr/stargazers)
@@ -10,9 +10,11 @@
 
 Mevcut bir Dahua NVR'ın üzerine **orijinal kayıt sistemini bozmadan** alan yetkisi, ilk-giriş alarmı, kapı geçişi logu ve tır/dorse renk kaydı ekleyen hafif bir hibrit AI katmanı.
 
-Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal nesne tespiti **Frigate**'te koşar (CPU → opsiyonel Coral USB), semantik analiz (tır/dorse rengi) **lokal Ollama vision modeli**nde koşar — **görüntüler tesisten çıkmaz, aylık LLM maliyeti $0**. Olaylar orijinal DSS/SmartPSS paneline **external alarm** olarak geri akar.
+Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için tasarlandı. Lokal nesne tespiti **Frigate**'te koşar (CPU → opsiyonel Coral USB), semantik analiz (tır/dorse rengi) **lokal Ollama vision modeli**nde koşar — **görüntüler tesisten çıkmaz, aylık LLM maliyeti $0**. Olaylar orijinal DSS/SmartPSS paneline **external alarm** olarak geri akar *(M4 kodu tamam + mock/retry testli; gerçek NVR doğrulaması saha pilotunda)*.
 
 > **Açık-kaynak referans + portföy projesi.** Amaç: mevcut CCTV altyapısı üzerinde gizlilik-öncelikli lokal AI'ı — *herkesin klonlayıp kendi tesisinde kurabileceği, çalışan bir referans sistem* olarak sunmak. Soyut tasarım değil: çalışır kod + dokümantasyon + ölçülebilir kanıt.
+
+> 🔒 **Proje durumu (2026-06) — `v1.0-public` referans dondurma.** Sistem, gerçek bir kurumsal **lojistik/depo** ortamından sağlanan **gerçek saha görüntüleriyle değerlendirme** aşamasına ulaştı _(kurumun verdiği kayıtlı saha görüntüleri üzerinde; canlı Dahua NVR entegrasyonu hâlâ saha pilotuna bağlı — aşağıdaki dürüst öz-değerlendirmeye bakın)_. Bu görüntüler gizli olduğundan saha-özel geliştirme **özel bir repoya taşındı**; bu public repo **M0–M7 (çalışan dev-stack + Dahua köprüsü + operasyonel olgunluk) + M8 adli-davranış-zekası tasarım kontratları** noktasında **referans olarak donduruldu** ([`ROADMAP.md`](ROADMAP.md) → "Public yaşam döngüsü: dondurma"). Aşağıdaki milestone tablosu bu dondurma anını yansıtır.
 
 ## Durum
 
@@ -26,13 +28,13 @@ Tipik 100 IP-kameralı, NVR'ı ~%50 yükte olan bir endüstriyel kurulum için t
 | M2.5 — Güvenlik sıkılaştırma | ✅ | MQTT/Frigate auth, mypy strict, persist |
 | M3 — Lokal LLM (Ollama) | ✅ | Tır/dorse renk analizi; smoke + **gerçek video E2E** (`truck_events`) + **doğruluk eval'i** (etiketli gold set, [`eval/`](eval/README.md)) |
 | M4 — Dahua alarm köprüsü | ✅ (kod) | NVR'a external alarm push + retry queue |
-| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera + dashboard ✅ (10 panel) + **perf harness & 1h baseline ✅**; 10 gerçek kamera + uzun soak kaldı |
-| M6 — Coral USB upgrade | ⬜ | Donanım tedariki bekliyor |
+| M5 — Çoklu kamera + Grafana | 🚧 | 5 kamera + dashboard ✅ (10 panel) + perf harness ✅; 1h baseline **koşuldu** (detector p95 41 ms ✓; harness Katman A gate'i RAM burn-in + test-loop skip'inde KALDI — bkz FINDINGS); 6h/24h + 10 gerçek kamera kaldı |
+| M6 — Coral USB upgrade | ⏸️ opsiyonel | CPU-only yeterli; donanım hızlandırma saha/üretim fazına bırakıldı (zorunlu değil) |
 | M6.5 — Kapı olayları (DMSS push) | ✅ | Door state machine (alternating in/out) + DMSS bildirim |
 | M7 — Operasyonel olgunluk | 🚧 | Kamera/Frigate/disk alarmları + snapshot budama + Grafana ✅, runbook ✅; restart auto-test kalanı |
 | M8 — Adli davranış zekası | 🔬 tasarım | "Olayı açıkla; ölçüleni çıkarsanandan ayır" — spec + Appendix A build kontratları + QR giriş-kimliği tasarım ekleri (docs/15-16) ✅, kod ⬜ |
 
-**Ölçülebilir kanıt (altyapı):** ilk 1 saatlik altyapı soak'ı geçti — 6 RTSP @5fps, detector p95 **41 ms** (eşik 200), RAM/CPU drift yok ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), dürüst katmanlı kriterlerle).
+**Ölçülebilir kanıt (altyapı):** ilk 1 saatlik altyapı baseline'ı **koşuldu** (111 örnek, kesintisiz) — 6 RTSP @5fps, detector p95 **41 ms** ✓ (eşik 200), **Frigate** RAM/CPU drift yok. Harness Katman A gate'i bridge-RAM burn-in artefaktı (+210% düşük-bazdan, ihmal edilebilir) ve motion-heavy test-loop skip'leri yüzünden KALDI verir; operasyonel hat (kapi/tir) skip <%10 ([`perf/runs/test1/FINDINGS.md`](perf/runs/test1/FINDINGS.md), katmanlı kriterler A/B/C).
 
 **Ölçülebilir kanıt (AI kalite):** M3 tır-renk VLM'i artık etiketli gold sete karşı **ölçülüyor** — şemaya uyduğu değil (`test_llm.py`), çıkarımının *doğru* olduğu. İlk canlı baseline (qwen2.5vl:7b, N=7): çekici renk doğruluğu **%85.7** / Cohen κ **0.82** güçlü ✓; ama dorse tipi (**0/7** — model çekimser), dorse rengi (**%17**) ve güven kalibrasyonu (ECE **0.26**) zayıf → harness bunları gate'ler, koşum **kasıtlı "kaldı"** ([`eval/runs/cam_tir-20260615/FINDINGS.md`](eval/runs/cam_tir-20260615/FINDINGS.md), protokol [`eval/README.md`](eval/README.md)). "Ölçülen ≠ abartılan" ilkesi modelin kendisine uygulandı: ne işe yaradığı kadar, **ne yaramadığı da** raporlanır.
 
@@ -49,7 +51,9 @@ Ayrıntılı plan: [`ROADMAP.md`](ROADMAP.md) · Olgunluk & test yolu: [`docs/14
 2. **doc13 demosu** — 5-kamera forensic akış (M8.1 grounded rapor → M8.2 handoff), demo videolarıyla doğrulanır.
 3. **Gerçek pilot** — canlı Dahua NVR + gerçek kameralar; öncesinde donanım/ağ + NVR entegrasyonu + KVKK + operasyon checklist'i.
 
-Tüm test katmanları, soak metodolojisi ve sahaya-çıkış checklist'i: **[`docs/14 — Test ve Üretime Hazırlık`](docs/14-testing-and-production-readiness.md)**.
+Tüm test katmanları, soak metodolojisi ve sahaya-çıkış checklist'i: **[`docs/14 — Test Stratejisi ve Üretime Hazırlık`](docs/14-testing-and-production-readiness.md)**.
+
+> Bu yol haritası artık **özel bir repoda, gerçek kurumsal saha görüntüleriyle** ilerliyor; bu public repo `v1.0-public` referansında donduruldu (yukarıdaki durum notu).
 
 ## Ne Yapar?
 
@@ -58,7 +62,7 @@ Tüm test katmanları, soak metodolojisi ve sahaya-çıkış checklist'i: **[`do
 3. **Oda state machine** — alan boşken ilk giren kişiyi `first_entry` olarak kaydeder, dolu alanda spam üretmez; `exit_timeout` sonrası `exit`. Mesai saatleri (`active_hours`) ve alarm tetikleme ayrı kararlar.
 4. **Kısıtlı bölge alarmı** — polygon zone'a (örn. sarı çizginin üstü) giriş anında alarm.
 5. **Kamyon girişinde lokal Ollama** ile **çekici ve dorse rengini** + dorse tipini ayrı kaydeder (`qwen2.5vl`). Plaka okumaz. Her çağrının gecikme/başarı kaydı `llm_usage`'a yazılır.
-6. **Olayları Dahua NVR'a external alarm** olarak geri besler — orijinal DSS/SmartPSS panelinde görünür (mobil push dahil). Erişilemezse retry kuyruğu.
+6. **Olayları Dahua NVR'a external alarm** olarak geri besler — orijinal DSS/SmartPSS panelinde görünür (mobil push dahil); erişilemezse retry kuyruğu. *(M4 kodu tamam + mock testli; gerçek panel doğrulaması saha pilotunda.)*
 7. **Grafana dashboard** — alan başına giriş, kamyon renk dağılımı, LLM gecikme/başarı, bekleyen alarm.
 8. **Kapı olayları** — ms hassasiyetinde giriş/çıkış logu (`door_events`, alternating in/out); bildirim **DMSS mobil push** ile (NVR external alarm üzerinden, ayrı e-posta altyapısı yok).
 9. **Kamera offline tespit** — `/api/stats` `camera_fps` izlenir; 60 sn frame yoksa `camera_status` offline + Dahua/DMSS alarm + Grafana paneli.

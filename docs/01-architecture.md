@@ -85,8 +85,7 @@
 - AI sunucu: SnipeIT ile aynı VLAN'da olabilir ama Frigate kamera VLAN'ına da erişmeli.
 - **LLM (Ollama): lokal** — bridge → host `host.docker.internal:11434`, LAN dışına çıkmaz. Outbound internet **gerekmez** (model ilk `ollama pull` dışında). _(Planlı Anthropic hibrit eklenirse outbound HTTPS 443 gerekecek.)_
 - Dahua NVR HTTP API: AI sunucudan NVR'a alarm push için erişim (genelde 80/443) — sadece alarm, RTSP yok.
-- SMTP: outbound 587 (Gmail TLS).
-- Viewer (FastAPI): reverse proxy arkasında 443, kullanıcılar e-posta linkinden erişir.
+- _SMTP (587) + Viewer (443): **referans tasarım — implemente DEĞİL.** Üretimde bildirim **DMSS mobil push** ile yapılıyor (Dahua external alarm → NVR push kuralı); e-posta + imzalı-link kanalı [`docs/09`](09-notifications.md) altında referans olarak duruyor (karar 2026-05-31, kapsam dışı)._
 
 ## RAM Bütçesi (12 GB sunucu, 8 GB AI için müsait)
 
@@ -99,7 +98,7 @@
 | Bridge Python servisi | ~0.3 GB | ~0.3 GB |
 | Mosquitto | ~0.05 GB | ~0.05 GB |
 | Grafana | ~0.3 GB | ~0.3 GB |
-| Viewer (FastAPI, planlı) | ~0.2 GB | ~0.2 GB |
+| Viewer (FastAPI, referans — impl. değil) | ~0.2 GB | ~0.2 GB |
 | **Toplam (container'lar)** | **~6.85 GB** | **~7.85 GB** |
 | **Tampon (container)** | **~5 GB** | **~4 GB** |
 
@@ -111,7 +110,7 @@
 |---|---|---|---|
 | Frigate Web UI | 5100 (→ 5000 container) | Iç (LAN) | reverse-proxy basic auth |
 | Grafana | 3000 | Iç (LAN) | Username/password |
-| Viewer (FastAPI) | 8080 | İç + reverse proxy 443 | HMAC view token |
+| Viewer (FastAPI, referans — impl. değil) | 8080 | İç + reverse proxy 443 | HMAC view token |
 | Postgres | 5432 | Sadece Docker network | DB user/pass |
 | MQTT | 1883 | Sadece Docker network | DB user/pass |
 | Bridge | yok | Docker internal | - |

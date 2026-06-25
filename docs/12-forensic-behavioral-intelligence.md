@@ -191,7 +191,7 @@ Demo'yu *iddiaya* çeviren metrikler:
 
 ---
 
-İlgili: `docs/04-zone-rules.md` (state machine), `docs/06-llm-strategy.md` (VLM deseni), `docs/07-cost-analysis.md` (wedge), `docs/10-why-frigate.md` (hibrit gerekçe).
+İlgili: `docs/04-zone-rules.md` (state machine), `docs/06-llm-strategy.md` (VLM deseni), `docs/07-cost-analysis.md` (wedge), `docs/10-why-frigate.md` (hibrit gerekçe), `docs/15-adaptive-capture.md` (uyarlanabilir yakalama) + `docs/16-qr-entrance-camera.md` (QR giriş lens/kimlik — M8 uzantısı).
 
 ---
 

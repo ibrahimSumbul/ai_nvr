@@ -7,7 +7,7 @@ Bu proje **PoC** olarak başlar, ama her milestone **production-ready** kalite h
 - [x] Mimari kararları (Frigate + Haiku + Dahua bridge)
 - [x] Donanım planı (PoC: CPU, prod: Coral USB)
 - [x] Maliyet analizi (PoC $10/ay, Production $25/ay)
-- [x] Tüm `docs/` dosyaları tamam (11 doküman: 01–11)
+- [x] M0 doküman seti tamam (11 doküman: 01–11; `docs/12–16` = ileri/M8 tasarım, M0 kapsamı dışı)
 - [x] Repository açılışı + draft PR #1
 
 **Çıktı**: Bu repodaki `ai-nvr/` klasörü.
@@ -141,16 +141,16 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 
 ---
 
-## Milestone 6: Coral USB Upgrade
+## Milestone 6: Coral USB Upgrade ⏸️ opsiyonel (saha fazına bırakıldı)
 
-**Hedef**: Türkiye'den Coral USB geldikten sonra TPU'ya geçiş.
+**Hedef**: Opsiyonel TPU hızlandırma. **Zorunlu değil** — sistem CPU-only çalışır ve test böyle yapıldı ([`perf/runs/test1`](perf/runs/test1/FINDINGS.md)). Yalnız çok-kamera ölçeğinde CPU yetmezse devreye girer; donanım kıyaslaması gerçek saha/üretim fazına bırakıldı (public PoC kapsamı dışı — bir engel/blocker değil, bilinçli sınır).
 
 - [ ] Coral driver kurulumu (libedgetpu)
 - [ ] Frigate detector config değişikliği
 - [ ] Performans karşılaştırma (önce/sonra CPU yükü)
 - [ ] Dokümantasyon update
 
-**Doğrulama**: Aynı yükte CPU kullanımı %30+ düşmeli.
+**Doğrulama**: Aynı yükte CPU kullanımı %30+ düşmeli. _(Gerçek donanımda, saha fazında.)_
 
 ---
 
@@ -228,3 +228,14 @@ CI yeşil, container 24 saat çakılmadan çalışır (boş loop).
 | 2026-06-06 | **M8 = adli davranış zekası; `docs/12` + Appendix A build kontratları** | Portföy manşeti: "olayı açıkla, ölçüleni çıkarsanandan ayır". Spec 3 adversarial geçişle (red-team/completeness/consistency) sertleştirildi; M8 fazlandı (8.1 grounded rapor → 8.2 handoff → 8.3 dismissal loop). Tasarım — henüz kod yok. |
 | 2026-06-15 | **VLM doğruluk eval harness + ilk canlı baseline** (PR #32/#33) | Portföy review'da ortak boşluk: AI çıktısının *doğruluğu* hiç ölçülmemişti (`test_llm.py` yalnız şema/parse'ı test eder). `bridge/eval.py` shipped M3 tır-renk'i etiketli gold sete karşı ölçer → "tasarladım"ı "ölçtüm"e çevirir. İlk baseline (N=7) bilinçli küçük/dürüst: çekici renk güçlü, dorse tipi/renk + kalibrasyon zayıf, gate'li raporlanır. Kapsam = shipped M3 (M8 §A.9 tasarımı değil); aynı iskelet M8 davranış-anlatısı eval'ine genişletilecek. |
 | 2026-06-23 | **M8 QR-giriş tasarım ekleri** (PR #35) | `docs/15` (uyarlanabilir yakalama) + `docs/16` (lens/boyut/blur analizi) eklendi — 2026-06-06 M8 tasarım kontratının alt-rafinasyonu, **kod yok**; M8.1 grounded rapor için ön-koşul. F0100 opak placard + e-İrsaliye 4-yönlü uzlaştırma; QR veri = kısa opak token (URL/manifest değil). |
+| 2026-06-24 | **Public repo `v1.0-public` dondurma; saha değerlendirmesi özelde** | Sistem, gerçek bir kurumsal lojistik/depo ortamından sağlanan **gerçek saha görüntüleriyle değerlendirme** aşamasına ulaştı (kayıtlı görüntüler; canlı NVR pilotu hâlâ açık). Görüntüler gizli → saha-özel geliştirme **özel repoya** taşındı. Public repo M0–M7 (çalışan dev-stack) + M8 tasarım kontratları noktasında donduruldu. Commit kimliği 3. geçmiş-yeniden-yazımıyla standartlaştırıldı (tek author/committer + `Co-Authored-By`). |
+
+---
+
+## Public yaşam döngüsü: dondurma (`v1.0-public`, 2026-06)
+
+Bu public repo bir **referans + portföy** artefaktıdır. M0–M7 çekirdek pipeline'ı dev-stack'te (Colima + MediaMTX) uçtan uca çalışır; M8 (adli davranış zekası) **tasarım kontratları** hazırdır (`docs/12` + Appendix A + `docs/15`–`16`), **kodu yoktur**.
+
+Buradan sonrası — uzun soak, `docs/13` demosu, M8 build ve gerçek saha pilotu — gerçek bir kurumsal **lojistik/depo** ortamından sağlanan **gerçek saha görüntüleriyle** ilerliyor. Bu görüntüler gizli olduğundan geliştirme **özel bir repoda** sürüyor; bu public repo `v1.0-public` etiketinde **referans olarak donduruldu**. Yukarıdaki milestone durumları bu dondurma anını yansıtır.
+
+> Dürüstlük notu (ölçülen ≠ çıkarsanan, projenin kendisine uygulanır): "değerlendirme" = kurumun verdiği **kayıtlı** saha görüntüleri üzerinde deneme; sistem henüz kurumun **canlı** Dahua NVR'ında üretimde koşmuş değildir. İddia buraya kadar, fazlası değil.

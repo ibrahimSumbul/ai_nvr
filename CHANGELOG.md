@@ -3,7 +3,9 @@
 Bu dosya tüm önemli değişiklikleri kayıt altına alır.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) tarzı.
 
-## [Unreleased]
+## [v1.0-public] — 2026-06-24
+
+**Public referans dondurma.** Repo'nun public yaşam döngüsünün son sürümü. Çekirdek pipeline (M0–M7) dev-stack'te uçtan uca çalışır; M8 adli-davranış-zekası **tasarım kontratları** tamam (`docs/12` + Appendix A + `docs/15`–`16`), kod ⬜. Bundan sonrası gerçek bir kurumsal **lojistik/depo** ortamından sağlanan **gerçek saha görüntüleriyle değerlendirme** aşamasında ve **özel repoda** sürüyor (gizli görüntü → public repo dondu). Commit kimliği 3. geçmiş-yeniden-yazımıyla standartlaştırıldı (tek author/committer `96423728+ibrahimSumbul@users.noreply.github.com` + `Co-Authored-By`). Ayrıntı: [`ROADMAP.md`](ROADMAP.md) → "Public yaşam döngüsü: dondurma".
 
 ### Fixed / Changed
 
