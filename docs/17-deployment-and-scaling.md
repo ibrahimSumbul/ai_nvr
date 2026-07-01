@@ -42,8 +42,9 @@ soyutlamasına dayanan bir plandır.
   MQTT + Grafana, host'ta Ollama. Klonlanır, yapılandırılır, ayağa kalkar; AI
   pipeline'ı (detection → tracking → semantik zenginleştirme → alarm/log) burada koşar.
   Repo ayrıca izleme katmanının oturacağı **temel iskeleti** taşır — somut olarak:
-  dev-stack'in MediaMTX RTSP kaynakları (`~/code/mediamtx`) ve Frigate'in dahili go2rtc'si
-  ([`frigate/config.yml`](../frigate/config.yml)) — ama zengin izleme duvarı **kendisi
+  dev-stack'in MediaMTX RTSP kaynakları (`~/code/mediamtx`) ve Frigate'in default bundle
+  ettiği dahili go2rtc'si (Frigate 0.17 go2rtc'yi gömülü getirir; [`frigate/config.yml`](../frigate/config.yml)'de
+  explicit `go2rtc` bloğu **yoktur** — gerekmez) — ama zengin izleme duvarı **kendisi
   değildir** (⬜ vizyon).
 
 - **On-prod izleme arayüzü (saha/müşteri gelişir).** Operatörün 7/24 baktığı
@@ -72,9 +73,9 @@ Kritik nokta: **NVR kaydı yapar, Frigate yalnız AI subset'ini görür.** 100 k
 hepsi AI'a girmez. İki ayrı sayıyı karıştırmamak gerekir:
 
 - **Bugünkü tek-makine CPU stack'i ≈ 3–4 detect kamerası** taşır (**ÖLÇÜLDÜ** —
-  ~1 çekirdek/kamera, bkz. [§6.1](#61-bugün-cpu--✅-ölçüldü)).
+  ~1 çekirdek/kamera, bkz. [§6.1](#61-bugün-cpu---ölçüldü)).
 - [`02 · Donanım`](02-hardware.md)'daki "100 kameranın **~%30–40'ı** AI kapsamında"
-  hedefi (≈ 30–40 kamera) **yeterli detection donanımı / GPU varsayar**
+  hedefi (≈ 30–40 kamera) **yeterli detection hızlandırıcı (Coral veya GPU) varsayar**
   (**ÇIKARSANMIŞ** — bkz. [§6.2](#62-gpu-gelince--tek-satır-config-modül-çıkarma-değil)).
 
 İzleme duvarı (canlı bakış) ile Frigate (AI) ayrı işlerdir; operatörün gözü duvarda,
@@ -128,7 +129,10 @@ HTTP snapshot/stats API. Bu sözleşme sabit kaldıkça Frigate'in *içi* deği�
 | `frigate/events` | Detection olayları (`new`/`update`/`end`) + nesne metadata'sı (person/car/truck…, zone, score, bbox). Her olay `new→update→end` boyunca **stabil bir tracking session ID** taşır ([`events.py:48-49`](../bridge/bridge/events.py) `event_id`). |
 | `frigate/available` | Frigate servis sağlığı, LWT (Last-Will) ile. Payload `online`/`offline`; Frigate çökerse servis-offline alarmı (kamera-offline'dan ayrı). |
 
-Bridge varsayılan abonelik `frigate/#`
+Bridge çalışma zamanında **yalnızca yukarıdaki iki topic'e EXPLICIT abone olur**
+(`["frigate/events", "frigate/available"]`; FrigateMonitor kapalıysa yalnız `frigate/events`)
+— bkz. [`bridge/bridge/main.py:123-124`](../bridge/bridge/main.py). `frigate/#` wildcard'ı
+yalnızca `MqttClient.listen()`'in kullanılmayan parametre varsayılanıdır
 ([`bridge/bridge/mqtt.py:23`](../bridge/bridge/mqtt.py)); olay modelleri
 [`bridge/bridge/events.py`](../bridge/bridge/events.py) (`FrigateEvent`, `FrigateObject`);
 servis sağlığı [`bridge/bridge/frigate_monitor.py`](../bridge/bridge/frigate_monitor.py);
@@ -180,8 +184,10 @@ detectors:
 - Frame-skip p95 (operasyonel kameralar): cam_kapi %2, cam_tir %7.8, cam_magaza %28
 
 **Pratik kural:** ~1 çekirdek/kamera → 4 çekirdek ≈ **3–4 detect kamerası**. Bu kural
-yük **operasyonel-kanıt katmanında** doğrulandı (docs/14 terminolojisiyle *Katman B* =
-3/3 operasyonel kamera skip p95 ≤ %10); harness'in *Katman A* (ham, strict) "fail"i
+yük **operasyonel-kanıt katmanında kısmen** doğrulandı (docs/14 terminolojisiyle
+*Katman B*: 3 operasyonel kameranın **2'si** — cam_kapi %2, cam_tir %7.8 — skip p95 ≤ %10;
+cam_magaza %28 ile eşiği aşar, FINDINGS'te "kısmen (magaza)" olarak kayıtlı ve 3/3 pass
+**Run 2 hedefidir**); harness'in *Katman A* (ham, strict) "fail"i
 bridge RAM büyüme metodolojisidir (restart sonrası düşük baz, warm-up önerisi). Detay:
 [`perf/runs/test1/FINDINGS.md`](../perf/runs/test1/FINDINGS.md); örnekleme
 [`bridge/bridge/perf.py`](../bridge/bridge/perf.py); kanıt-katman çerçevesi
@@ -210,7 +216,7 @@ detectors:
 > olmasın: `device: GPU` string'i **yalnız OpenVINO** içindir. TensorRT'de `device` bir
 > **tamsayı GPU indeksidir** (`device: 0`), string `GPU` değil. AMD'de ise `type: rocm`
 > diye bir detector **yoktur**; AMD GPU `type: onnx` + `-rocm` ekli Frigate Docker imajı
-> ile çalışır. Değişmeyen şey **bridge sözleşmesidir** ([§5](#5-swappable-detector--insülasyon-sözleşmesi--✅-sözleşme-çalışıyor)),
+> ile çalışır. Değişmeyen şey **bridge sözleşmesidir** ([§5](#5-swappable-detector--insülasyon-sözleşmesi---sözleşme-çalışıyor)),
 > detector bloğunun kendisi değil.
 
 | Backend | `type` | `device` | Gereksinim |
@@ -304,7 +310,7 @@ ifadesi yalnız taşınabilirlik sağlamlaştırması içindir, sıfır-yapılan
 - **GPU ölçekleme** (🟡): hangi backend (OpenVINO/TensorRT/ONNX-ROCm); GPU kamera
   kapasitesi **ölçülmeli** (şu an çıkarsanmış); CPU→GPU geçişinde detector p95/skip
   baseline'ı tekrar alınmalı.
-- **Custom detector** (⬜): yalnız GPU Frigate yetmezse; sözleşme ([§5](#5-swappable-detector--insülasyon-sözleşmesi--✅-sözleşme-çalışıyor))
+- **Custom detector** (⬜): yalnız GPU Frigate yetmezse; sözleşme ([§5](#5-swappable-detector--insülasyon-sözleşmesi---sözleşme-çalışıyor))
   korunmalı.
 - **On-prod arayüz entegrasyonu** (⬜): backend + iskelet hazır; izleme duvarı ile
   backend'in birleştirilmesi planlandı, **henüz yapılmadı**. Açık: panel hangi API ile
