@@ -59,6 +59,10 @@ Pitch: *"Olayı açıkla; ölçüleni beyandan ayır."*
 - **Açı:** giriş kapısı.
 - **Frigate ölçer:** tır varlığı, `giriş_ts` / `çıkış_ts` → tesiste kalış süresi.
 - **VLM (mevcut M3 truck akışı):** çekici rengi + dorse tipi/rengi (`qwen2.5vl`).
+- **QR kimlik (M8 tasarım eki — kod YOK):** tır/dorse `F0100`-sıralı opak QR ile de kimliklenip
+  dok-kapı atamasına bağlanabilir; yakalama/ortam fiziği + giriş-kamera rol şablonu
+  [`15-adaptive-capture.md`](15-adaptive-capture.md) §15.8/§15.9, lens/boyut analizi
+  [`16-qr-entrance-camera.md`](16-qr-entrance-camera.md).
 - **Rol:** kamera 2'deki unload'u **doğru tıra bağlayan çıpa**. Tek başına neredeyse
   mevcut özellik — değeri LİNK'te; lifecycle'ın açılış perdesi.
 - **Video:** tırın kapıdan girişi + çıkışı.

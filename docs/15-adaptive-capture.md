@@ -94,5 +94,96 @@ tır kimliği, geçerlilik) sunucu-tarafı **değişebilir eşleme** ile çözü
 - **Grounding:** token = ÖLÇÜLEN (okundu); çözülen anlam = ÖLÇÜLEN (mevcut key'e lookup); eşleşme =
   deterministik mantık; VLM = yalnız anomali anlatısı (yanlış kapı / süre dolmuş / tır-token uyumsuz).
 
-> Açık iş: **§15.8 Uzun-menzil dış ortam (10m, ANPR-sınıfı)** bölümü (tele ~16-25mm varifocal + WDR + mat
-> ~25cm QR ECC-H + 10m IR + 1/1000-1/2000s; güneş/backlight/sis/gece/ısı-pırıltısı/odak) — taze session'da eklenecek.
+## 15.8 Uzun-menzil dış ortam (10 m, ANPR-sınıfı) — yakalama & ortam fiziği
+
+> Bu bölüm [`16-qr-entrance-camera.md`](16-qr-entrance-camera.md) §16.5'in **"10 m dış ortam"** satırının
+> ("16–25 mm varifocal + WDR + 10 m IR + mat placard + uyarlamalı yakalama") **yakalama/ortam-fiziği**
+> detayıdır. **Lens × mesafe × QR-boyutu ve compute** orada çözüldü (§16.3/§16.4) → burada **tekrarlanmaz**;
+> bu bölüm yalnız 10 m'de fiziğin nerede sınırladığını ve donanım karşılığını anlatır.
+
+Kontrollü ~5 m giriş kapısından (§16.5 birinci satır) farkı: mesafe artınca **ışık bütçesi çöker** ve
+dış ortam **denetlenemez** hale gelir. Sıralı darboğazlar:
+
+- **Işık-vs-shutter darboğazı (bağlayıcı kısıt).** 15 km/h'i dondurmak ~1/700 s eşiğinde başlar,
+  marjlı çalışma noktası 1/1000–1/2000 s (§16.4 motion-blur satırı); ama uzun-tele lensin küçük diyaframı
+  (§16.4 ışık satırı) o hızda sensöre
+  az foton bırakır. 10 m'de bu ikisi **çakışır** → §15.1'in "fizik sınırı = ışık, compute değil" tezi
+  burada en serttir. Çözüm foton üretmek (IR/aydınlatma/WDR), gain'i (gürültüyü) fırlatmak **değil**
+  (§15.3 gain-tavanı politikası).
+- **WDR / backlight / güneş.** Açık havada güneş tıranın arkasında veya placard'a çarpıp **parlama**
+  yaratır → generic "sahne-ortalaması" pozlama QR'ı ya yakar ya karartır. Gerekir: **WDR sensörü** +
+  pozlama **ölçümünü placard ROI'sine** kilitle (§15.2 luma/histogram sinyali sahne değil ROI üstünden).
+- **Sis / yağmur / kir → ECC marjı.** Kontrast düşürücü hava ve lens/placard kiri modül kenarlarını
+  yumuşatır. **ECC level H (%30 onarım, §16.1)** bozulan modüllere marj verir — ama ECC **kısmi** bozulmayı
+  kurtarır, **tam örtme/okunamazlığı değil**. Dürüst sınır: ağır sis/çamur = donanım/konum sorunu, yazılım değil.
+- **Gece 10 m IR + ⚠ retroreflektif tuzağı.** 10 m'de gece güçlü IR ister; ama placard **retroreflektif**
+  malzemeye basılırsa IR ışığı doğrudan geri yansır → **IR-hotspot / blooming** → beyaz patlamış leke →
+  QR okunamaz. Çözüm: **mat / IR-dostu (retroreflektif-olmayan) baskı** — §16.5 "mat placard" satırının
+  fiziksel gerekçesi budur. Çıplak gözle sezilmeyen, sahada QR'ı öldüren spesifik bir hatadır.
+- **Isı-pırıltısı (heat shimmer).** Uzun menzil + sıcak zemin (asfalt/gün ortası) → atmosferik pırıltı
+  modül kenarlarını titretir. Azaltma sınırlı (kısa entegrasyon + çok-kare "en iyi kareyi seç"); temelde
+  **ortamsal** — mesafeyi kısaltmak en etkili çözüm.
+- **DoF → şeride sabit-odak.** Menzil için gereken uzun odak = sığ DoF (§16.4 DoF satırı: uzun tele →
+  sığ; sabit odakta mesafe DoF'u *derinleştirir*, sığlığın kaynağı odak/büyütme). Otomatik-odak avlanması
+  yerine **giriş şeridine sabit-odak**. (Mekanizma §16.4'te; burada yalnız ortam bağlamı.)
+
+**Özet karar:** 10 m dış-ortam okuması **mümkün ama donanıma bağımlı** — sizing/lens §16, ortam-fiziği bu
+bölüm. Yazılım (uyarlamalı yakalama §15.2–15.4) yalnız *mevcut* fotonu en iyi kullanır; foton yetmiyorsa
+çözüm IR/WDR/mat-baskı/mesafe, kod değil (§15.5 dürüst sınır).
+
+## 15.9 Frigate giriş-kamera rol şablonu (örnek — kod değil)
+
+> **Örnek/illüstratif YAML** — mevcut `frigate/config.yml`'e **eklenmedi** (bu doküman M8 tasarım eki, kod
+> YOK). Kanıtlanmış `cam_tir` bloğunu (`frigate/config.yml:167-183`) giriş-QR rolüne uyarlar; §15.6'nın
+> "M8.1'de config rolleri + bridge controller olarak somutlaşır" ileri-atfının somut karşılığıdır.
+
+Giriş kamerası **iki-akışlı** çalışır: düşük-çözünürlüklü **substream** Frigate'e tespit için, yüksek-çözünürlüklü
+**4MP main** yalnız olay anında QR karesi için.
+
+```yaml
+# ÖRNEK — mevcut config'e eklenmedi (illüstratif). cam_tir (frigate/config.yml:167-183) temelli.
+cam_giris:
+  ffmpeg:
+    inputs:
+      # GİRDİ substream native fps'te kalmalı — 5fps'lik bir *girdi* Frigate watchdog'unu tetikler (config.yml:158-159).
+      - path: rtsp://host.docker.internal:8554/cam_giris   # DÜŞÜK-ÇÖZ substream
+        roles: [detect]
+  detect:
+    enabled: true
+    width: 640
+    height: 480
+    fps: 5                    # detect alt-örnekleme oranı; girdi capture fps'inden bağımsız (cam_tir ile aynı)
+  motion:                     # cam_tir ile aynı — hareket eşiği tır sahnesine ayarlı
+    threshold: 18
+    contour_area: 10
+    improve_contrast: true
+  zones:
+    cam_giris_zone:
+      coordinates: 0,480,640,480,640,0,0,0
+  # 4MP main'e Frigate `record` rolü VERİLMEZ: record kapalı (config.yml:55-57 record.enabled: false —
+  #   "kayıt Dahua NVR'da"). QR-kalite yüksek-çöz kareyi Frigate'in detect-çöz snapshot'ı üretmez;
+  #   truck-event tetiğiyle ayrı M8.1 QR bileşeni 4MP main'den (Frigate-paketli go2rtc restream) çeker.
+```
+
+**Yakalama politikası:**
+
+- **Tespit = Frigate**, düşük-çöz substream üstünde (kanıtlanmış cam_tir deseni). Frigate `truck` olayını
+  MQTT'ye yayar.
+- **Yüksek-çöz QR karesi = olay-tetikli anlık-görüntü**, record-clip **değil**. Bu, deponun kayıt duruşuyla
+  tutarlı: `record.enabled=false` (kayıt Dahua NVR'da, config.yml:55-57) + `snapshots.enabled` global açık
+  (config.yml:48-49) → "sürekli klip değil, olay anında kare" zaten projenin duruşu. *(docs/16 §16.4'teki
+  "4MP record" ibaresi genel çift-akış etiketidir; burada record-rolü kapalı olduğundan yakalama anlık-görüntü
+  biçimindedir — çelişki değil, netleştirme.)* QR-kalite kareyi üreten Frigate snapshot'ı (detect-çöz) **değil**,
+  4MP main'den çeken M8.1 bileşenidir.
+- **QR decode Frigate-native DEĞİL** → ayrı **M8.1 bileşeni** (pyzbar/zxing-sınıfı), truck-event ile tetiklenir.
+  Böylece **hatalı bir QR okuması asla bir Frigate tespiti gibi görünemez** — sınıf sınırı korunur.
+
+**Grounding (üç-sınıf köprü, [`12-forensic-behavioral-intelligence.md`](12-forensic-behavioral-intelligence.md)
+§A.1):** §15.5/§15.7'deki iki-sınıf QR çerçevesi, §A.1'in üç sınıfına şöyle oturur — decode edilen token =
+**ÖLÇÜLEN** (ECC sağlamasıyla sert geç/kal, eşik-türevi değil); blur / decode-güven ön-eşiği (§15.2 hareket-blur
+satırı) = **TÜRETİLMİŞ** (gürültülü keskinlik sinyali üstünde eşik → düşükse çekimser kal, hatalı okuma yayma);
+kapı-uygunluğu = deterministik lookup (ÖLÇÜLEN); VLM = yalnız anomali anlatısı (**ÇIKARSANAN**).
+
+**Detector-bağımsız:** tespit Frigate/MQTT sözleşmesi arkasında durduğundan CPU detektörünü Coral/GPU'ya takas
+etmek `detectors:` bloğu değişikliğidir (config.yml:24-30), bu kamera rol şablonuna dokunmaz — QR/giriş tasarımı
+detektörden bağımsızdır (ölçekleme/detektör-takası: [`17-deployment-and-scaling.md`](17-deployment-and-scaling.md)).
