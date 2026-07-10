@@ -10,7 +10,8 @@
 
 Tek bir sabit shutter/pozlama değeri **ortamlar arası yanlıştır**:
 - Gündüz parlak güneş vs gece IR; açık hava vs kapalı dok; yağmur/sis/kar.
-- 15 km/h tır için blur'ü dondurmak ~1/1000–1/2000 s ister; ama o hız ışığı 10–20× azaltır
+- 15 km/h tır için blur'ü dondurmak hızlı shutter ister (~1/700 s eşik, tatlı nokta 1/1000–1/2000 s);
+  ama o hız ışığı 10–20× azaltır
   → zayıf ışıkta gain (ISO) fırlar → gürültü → QR okunmaz. **Fizik sınırı = ışık, compute değil.**
 - 10+ kamerayı **elle tek tek ayarlamak ölçeklenmez** ve zamanla kayar (mevsim, gün-içi, lens kiri).
 

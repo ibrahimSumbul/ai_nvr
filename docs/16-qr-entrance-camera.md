@@ -46,7 +46,7 @@ geniş diyafram (iyi ışık). Uzun odak (20–50 mm) = uzak + dar → **küçü
 | **DoF** | ↑odak + ↓mesafe → ↓DoF (odak kritik) | uzun tele yakında çok sığ → **şeride sabit-odak** |
 | **Yakalama penceresi** | dar FOV (uzun odak) → QR kısa görünür → az kare | 4.17 m/s'te FOV 2 m≈12 kare, 5 m≈30 kare @25fps |
 | **Işık** | uzun-zoom lensler küçük diyafram → az ışık → hızlı shutter zor | wide lens (2.5–5 mm) f/1.6–2.0 → iyi; gece **IR** zorunlu |
-| **Compute** | lens compute'u **etkilemez** | substream detect (640×480@5fps) + 4MP record + **event-gated QR decode** → ~1 çekirdek + ~200–300 MB |
+| **Compute** | lens compute'u **etkilemez** | substream detect (640×480@5fps) + 4MP main (olay-anı grab) + **event-gated QR decode** → ~1 çekirdek + ~200–300 MB |
 | **Yüksek açı** | QR (kaput/çatı, finder+perspektif) yüksek açıya **dayanıklı**; plaka (dik) bozulur | yüksek-açı senaryosu QR'ı kayırır |
 
 ## 16.5 Senaryo önerileri
